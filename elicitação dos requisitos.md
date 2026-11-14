@@ -242,6 +242,7 @@ sequenceDiagram
 8. **Modelo: família Qwen 3, por API compatível com a da OpenAI.**
    - *Decisão:* a aplicação usa um cliente genérico configurado por endereço (`base_url`), nome do modelo e chave, via variáveis de ambiente. Enquanto o provedor não é escolhido, um modelo simulado permite desenvolver e testar.
    - *Motivo:* escolha da equipe. Os principais serviços que executam Qwen 3 (DashScope/Alibaba, OpenRouter, Groq, Ollama, vLLM) oferecem essa API, então trocar de provedor não exige mudar código.
+   - *Alternância de modelos:* feita **por configuração** (editar o `.env` e reiniciar a aplicação), por exemplo entre modelos Qwen 3 pequenos no Ollama, para validar o uso sem máquina potente. Não haverá gateway com escolha de modelo por requisição. Motivo: atende à necessidade de validação sem código adicional, o que é importante com o prazo curto.
 9. **Detalhes do resumo (seção 7).**
    - *Decisão:* as mensagens ainda não resumidas são enviadas inteiras ao modelo; quando houver 10 ou mais delas fora da janela das 10 mais recentes, o resumo é atualizado pelo mesmo modelo, depois que a resposta é entregue e antes da liberação do bloqueio. O resumo e a posição até onde ele cobre ficam guardados na própria conversa.
    - *Motivo:* atualizar em lotes evita uma chamada extra ao modelo a cada pergunta; gerar depois da resposta não aumenta o TTFT; fazer isso ainda sob o bloqueio impede que duas atualizações concorram.
