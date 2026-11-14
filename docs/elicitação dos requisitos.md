@@ -186,7 +186,7 @@ flowchart LR
 - **Modelo externo:** se uma API de terceiros executar o modelo, o consumo de recursos dessa execução pode não estar disponível; ainda assim, é possível medir recursos locais e latências percebidas.
 - **Segurança e privacidade:** proteger o tráfego com HTTPS, guardar credenciais no servidor e considerar a exposição de conteúdo enviado ao provedor. O ID não comprova a identidade do usuário. O cookie de sessão segue os atributos da decisão 4 da seção 2.
 - **Hospedagem:** AWS EC2 (decidido). Conforme o enunciado, sua utilização é opcional e concede pontuação extra; o endpoint público e as instruções de uso são exigidos.
-- **Tecnologia:** Python com FastAPI e banco PostgreSQL (decididos; justificativas na seção 9). Modelo da família Qwen 3, acessado por API compatível com a da OpenAI; o provedor que o executa e o tamanho do modelo continuam em aberto.
+- **Tecnologia:** Python com FastAPI e banco PostgreSQL (decididos; justificativas na seção 9). Modelo da família Qwen 3, executado no Ollama e acessado por API compatível com a da OpenAI; o tamanho do modelo continua em aberto.
 
 As metas abaixo foram **aprovadas** como critérios de aceitação do protótipo. Dependem do provedor e do modelo LLM escolhidos, e o TTFT só tem sentido se houver streaming (em aberto); sem streaming, TTFT e tempo total coincidem.
 
@@ -241,7 +241,15 @@ sequenceDiagram
    - *Consequência:* o Swagger não exibe a resposta chegando aos poucos; mostra o conteúdo completo ao fim. O TTFT é medido pelo cliente do teste de carga.
 8. **Modelo: família Qwen 3, por API compatível com a da OpenAI.**
    - *Decisão:* a aplicação usa um cliente genérico configurado por endereço (`base_url`), nome do modelo e chave, via variáveis de ambiente. Enquanto o provedor não é escolhido, um modelo simulado permite desenvolver e testar.
-   - *Motivo:* escolha da equipe. Os principais serviços que executam Qwen 3 (DashScope/Alibaba, OpenRouter, Groq, Ollama, vLLM) oferecem essa API, então trocar de provedor não exige mudar código.
+   - *Motivo (Qwen 3):*
+     - **Pesos abertos e licença Apache 2.0:** o enunciado permite modelos open weight; o modelo pode ser executado na própria infraestrutura da equipe, sem custo por uso nem envio das conversas a terceiros.
+     - **Família com vários tamanhos** (de 0.6B a 235B parâmetros): o mesmo modelo escala de um notebook sem GPU a servidores maiores, trocando só o nome na configuração.
+     - **Executa em CPU:** as versões pequenas rodam no Ollama sem GPU, compatível com as máquinas da equipe e com uma instância EC2 comum.
+     - **Multilíngue, incluindo português**, idioma das perguntas e respostas do chatbot.
+     - **Modo de raciocínio desligável:** para um chatbot de perguntas genéricas, desligá-lo reduz a latência. Medido no Ollama com o `qwen3:0.6b`: primeiro trecho em ~0,1 s sem raciocínio, contra ~2 s com ele.
+     - **Medições locais (um usuário, CPU):** `qwen3:0.6b` responde em ~0,1–0,5 s até o primeiro trecho, mas erra fatos e confunde papéis; `qwen3:1.7b` responde em ~1 s, mantém contexto e papéis corretamente e erra menos.
+   - *Motivo (API compatível com a da OpenAI e SDK `openai`):* é o formato adotado pelos principais serviços que executam o Qwen 3 (Ollama, vLLM, DashScope/Alibaba, OpenRouter, Groq). Com um único cliente, trocar de provedor não exige mudar código, e o SDK já trata streaming e timeouts.
+   - *Motivo (Ollama como provedor):* instalação simples, gerencia download e carregamento dos modelos e expõe a API compatível com a da OpenAI. Atende à necessidade de validar o uso sem máquina potente.
    - *Alternância de modelos:* feita **por configuração** (editar o `.env` e reiniciar a aplicação), por exemplo entre modelos Qwen 3 pequenos no Ollama, para validar o uso sem máquina potente. Não haverá gateway com escolha de modelo por requisição. Motivo: atende à necessidade de validação sem código adicional, o que é importante com o prazo curto.
 9. **Detalhes do resumo (seção 7).**
    - *Decisão:* as mensagens ainda não resumidas são enviadas inteiras ao modelo; quando houver 10 ou mais delas fora da janela das 10 mais recentes, o resumo é atualizado pelo mesmo modelo, depois que a resposta é entregue e antes da liberação do bloqueio. O resumo e a posição até onde ele cobre ficam guardados na própria conversa.
@@ -257,7 +265,7 @@ flowchart TD
 ### 9.2 Em aberto
 
 1. **Falhas:** definir mensagens e ações para entrada vazia, indisponibilidade ou demora do modelo e outros erros pertinentes, incluindo timeout, nova tentativa e liberação do bloqueio. Já decidido e fora desta questão: cookie ausente ou com ID inexistente cria nova conversa, sem erro (seção 2, decisão 7). A definição foi adiada por enquanto.
-2. **Provedor e tamanho do Qwen 3:** escolher onde o modelo roda e qual tamanho usar. Executá-lo no próprio EC2 sem GPU dificilmente atinge as metas. As metas de desempenho devem ser verificadas com a escolha final.
+2. **Tamanho do Qwen 3:** o provedor é o Ollama (decisão 8); falta confirmar o tamanho do modelo. Recomendação: `qwen3:1.7b`, pela qualidade superior nas medições locais. Executá-lo no EC2 sem GPU pode não atingir as metas com muitos usuários; elas devem ser verificadas com a escolha final.
 3. **Cenário detalhado do teste de carga:** padrão de chegada das requisições, tamanho das perguntas e duração do teste.
 
 ## 10. Verificação e apresentação

@@ -2,7 +2,37 @@
 
 Chatbot multiusuário com histórico persistente por conversa, feito em Python (FastAPI +
 PostgreSQL) e usando modelos da família **Qwen 3**. A interface é a própria API, usada pela
-documentação **Swagger**. Requisitos e decisões do projeto estão em `elicitação dos requisitos.md`.
+documentação **Swagger**. O enunciado está em `docs/requisitos.md`, e os requisitos e decisões
+do projeto em `docs/elicitação dos requisitos.md`. Arquivos de infraestrutura (banco local e
+acesso ao EC2) ficam em `infra/`.
+
+## Acesso público
+
+> **Endereço público: a definir após a implantação no AWS EC2.**
+
+Quando publicado, o uso será o mesmo descrito neste README, trocando `http://localhost:8001` pelo
+endereço público:
+
+| O quê | Endereço |
+|---|---|
+| Documentação interativa (Swagger) | `https://<endereço-público>/docs` |
+| Verificação de funcionamento | `https://<endereço-público>/saude` |
+
+O acesso público exige HTTPS, porque o cookie de sessão só trafega por conexões seguras.
+
+## Por que Qwen 3
+
+| Característica | Por que importa neste projeto |
+|---|---|
+| Pesos abertos, licença Apache 2.0 | Roda na infraestrutura da equipe, sem custo por uso nem envio das conversas a terceiros. |
+| Vários tamanhos na mesma família (0.6B a 235B) | O mesmo modelo vai de um notebook sem GPU a servidores maiores, trocando só a configuração. |
+| Roda em CPU via Ollama | Compatível com as máquinas da equipe e com uma instância EC2 comum. |
+| Multilíngue, incluindo português | Idioma das perguntas e respostas. |
+| Modo de raciocínio desligável | Reduz a latência: primeiro trecho em ~0,1 s em vez de ~2 s (medido com `qwen3:0.6b`). |
+
+O acesso usa a **API compatível com a da OpenAI** (SDK `openai`), formato adotado pelo Ollama e
+pelos principais serviços que executam o Qwen 3. Assim, trocar de provedor não exige mudar código.
+Medições e justificativas completas: `docs/elicitação dos requisitos.md`, seção 9, decisão 8.
 
 ## Sumário
 
@@ -33,13 +63,13 @@ Todos os comandos são executados na pasta do projeto.
 Com o Docker Desktop aberto:
 
 ```bash
-docker compose up -d --wait
+docker compose -f infra/docker-compose.yml up -d --wait
 ```
 
 Isso cria um PostgreSQL acessível só pela sua máquina, em `127.0.0.1:5434`, com dois bancos:
 `chatbot` (aplicação) e `chatbot_test` (testes automatizados). Os dados ficam num volume do Docker
-e sobrevivem a reinícios. Para desligar: `docker compose down`. Para desligar **e apagar os dados**:
-`docker compose down -v`.
+e sobrevivem a reinícios. Para desligar: `docker compose -f infra/docker-compose.yml down`. Para
+desligar **e apagar os dados**: `docker compose -f infra/docker-compose.yml down -v`.
 
 ### 2.2 Criar o ambiente virtual e instalar as dependências
 
@@ -240,7 +270,7 @@ curl -c cookies.txt -b cookies.txt https://SEU-HOST/conversa
 | Sintoma | Causa e solução |
 |---|---|
 | `failed to connect to the docker API` | O Docker Desktop está fechado. Abra-o e repita o comando. |
-| `port is already allocated` ao subir o banco | Outro programa usa a porta 5434. Troque a porta em `docker-compose.yml` e em `DATABASE_URL`. |
+| `port is already allocated` ao subir o banco | Outro programa usa a porta 5434. Troque a porta em `infra/docker-compose.yml` e em `DATABASE_URL`. |
 | `address already in use` ao iniciar a aplicação | Outro programa usa a porta 8001. Use outra: `uvicorn app.main:app --port 8002`. |
 | PowerShell não deixa ativar o `.venv` | Rode uma vez: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. |
 | Com `curl` local, cada chamada cria uma conversa nova | O `curl` não guarda cookie `Secure` vindo de `http://`. Para testes locais com `curl`, use `COOKIE_SECURE=false` no `.env`. O navegador e o Swagger não têm esse problema. |
