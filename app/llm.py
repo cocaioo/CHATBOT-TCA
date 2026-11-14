@@ -1,8 +1,11 @@
 """Acesso ao modelo de linguagem (seção 9, decisão 8).
 
-O Qwen 3 é acessado por uma API compatível com a da OpenAI; o provedor é
-escolhido por configuração. O modelo simulado permite desenvolver e testar
-sem provedor.
+O modelo é o Gemini 2.5 Flash, acessado pelo SDK oficial do Google (`google-genai`).
+O modelo simulado permite rodar os testes automatizados sem chave nem internet.
+
+O restante da aplicação trabalha com mensagens no formato
+`{"role": "system" | "user" | "assistant", "content": "..."}`;
+a conversão para o formato do Gemini fica isolada neste módulo.
 """
 
 import asyncio
@@ -21,7 +24,7 @@ class ClienteLLM(Protocol):
 
 
 class LLMFalso:
-    """Modelo simulado: repete a pergunta, palavra a palavra."""
+    """Modelo simulado: repete a pergunta, palavra a palavra. Usado nos testes."""
 
     def __init__(self, atraso: float = 0.05) -> None:
         self.atraso = atraso
@@ -44,42 +47,77 @@ class LLMFalso:
         return "".join(partes).strip()
 
 
-class LLMOpenAICompativel:
-    """Cliente para qualquer serviço com API compatível com a da OpenAI
-    (DashScope, OpenRouter, Groq, Ollama, vLLM...)."""
+# Papéis da aplicação -> papéis do Gemini
+PAPEL_GEMINI = {"user": "user", "assistant": "model"}
+
+
+def para_gemini(mensagens: Mensagens):
+    """Separa a instrução de sistema e converte as demais mensagens para `types.Content`.
+
+    O Gemini recebe a instrução de sistema à parte (`system_instruction`) e chama
+    o papel do assistente de "model".
+    """
+    from google.genai import types
+
+    sistema = "\n\n".join(m["content"] for m in mensagens if m["role"] == "system") or None
+    conteudos = [
+        types.Content(role=PAPEL_GEMINI[m["role"]], parts=[types.Part.from_text(text=m["content"])])
+        for m in mensagens
+        if m["role"] != "system"
+    ]
+    return sistema, conteudos
+
+
+class LLMGemini:
+    """Cliente do Gemini pelo SDK oficial `google-genai`."""
 
     def __init__(self) -> None:
-        from openai import AsyncOpenAI
+        if not config.gemini_api_key:
+            raise RuntimeError(
+                "GEMINI_API_KEY não configurada. Gere uma chave no Google AI Studio e "
+                "coloque-a no arquivo .env (veja o README)."
+            )
+        from google import genai
 
-        self.cliente = AsyncOpenAI(
-            base_url=config.llm_base_url or None,
-            api_key=config.llm_api_key or "nao-usada",
-            timeout=config.llm_timeout_segundos,
+        self.cliente = genai.Client(
+            api_key=config.gemini_api_key,
+            http_options={
+                # A instrução de sistema (system_instruction) só é aceita na versão v1beta da
+                # API; na v1, padrão desta versão do SDK, a chamada é recusada com erro 400.
+                "api_version": "v1beta",
+                "timeout": int(config.llm_timeout_segundos * 1000),
+            },
+        )
+
+    def _configuracao(self, sistema: str | None):
+        from google.genai import types
+
+        return types.GenerateContentConfig(
+            system_instruction=sistema,
+            # 0 desliga o "raciocínio" do Gemini 2.5 Flash: o primeiro trecho chega mais cedo.
+            thinking_config=types.ThinkingConfig(thinking_budget=config.llm_orcamento_raciocinio),
         )
 
     async def gerar_stream(self, mensagens: Mensagens) -> AsyncIterator[str]:
-        stream = await self.cliente.chat.completions.create(
-            model=config.llm_modelo,
-            messages=mensagens,
-            stream=True,
-            extra_body=config.llm_extra_body or None,
+        sistema, conteudos = para_gemini(mensagens)
+        stream = await self.cliente.aio.models.generate_content_stream(
+            model=config.llm_modelo, contents=conteudos, config=self._configuracao(sistema)
         )
         async for pedaco in stream:
-            if pedaco.choices and (texto := pedaco.choices[0].delta.content):
-                yield texto
+            if pedaco.text:
+                yield pedaco.text
 
     async def gerar(self, mensagens: Mensagens) -> str:
-        resposta = await self.cliente.chat.completions.create(
-            model=config.llm_modelo,
-            messages=mensagens,
-            extra_body=config.llm_extra_body or None,
+        sistema, conteudos = para_gemini(mensagens)
+        resposta = await self.cliente.aio.models.generate_content(
+            model=config.llm_modelo, contents=conteudos, config=self._configuracao(sistema)
         )
-        return resposta.choices[0].message.content or ""
+        return resposta.text or ""
 
 
 def criar_llm() -> ClienteLLM:
-    if config.llm_provedor == "openai":
-        return LLMOpenAICompativel()
+    if config.llm_provedor == "gemini":
+        return LLMGemini()
     if config.llm_provedor == "falso":
         return LLMFalso()
-    raise ValueError(f"LLM_PROVEDOR desconhecido: {config.llm_provedor!r}")
+    raise ValueError(f"LLM_PROVEDOR desconhecido: {config.llm_provedor!r} (use 'gemini' ou 'falso')")

@@ -1,5 +1,3 @@
-from typing import Any
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,13 +23,13 @@ class Config(BaseSettings):
     mensagens_recentes: int = 10
     lote_resumo: int = 10
 
-    # LLM (seção 9, decisão 8): "falso" para desenvolvimento, "openai" para API compatível
-    llm_provedor: str = "falso"
-    llm_base_url: str = ""
-    llm_api_key: str = ""
-    llm_modelo: str = "qwen3"
+    # LLM (seção 9, decisão 8): Gemini 2.5 Flash; "falso" é o modelo simulado dos testes
+    llm_provedor: str = "gemini"
+    gemini_api_key: str = ""
+    llm_modelo: str = "gemini-2.5-flash"
     llm_timeout_segundos: float = 90
-    llm_extra_body: dict[str, Any] = {}
+    # Tokens de "raciocínio" do Gemini 2.5 Flash: 0 desliga (menor latência), -1 automático
+    llm_orcamento_raciocinio: int = 0
 
     prompt_sistema: str = (
         "Você é um assistente prestativo. Responda em português, de forma clara e objetiva."

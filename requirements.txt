@@ -3,5 +3,5 @@ uvicorn[standard]==0.54.0
 sqlalchemy[asyncio]==2.1.8
 asyncpg==0.32.0
 pydantic-settings==2.16.3
-openai==3.51.0
+google-genai==3.3.0
 anyio==4.16.0

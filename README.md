@@ -1,7 +1,7 @@
 # Chatbot TCA
 
 Chatbot multiusuário com histórico persistente por conversa, feito em Python (FastAPI +
-PostgreSQL) e usando modelos da família **Qwen 3**. A interface é a própria API, usada pela
+PostgreSQL) e usando o modelo **Gemini 2.5 Flash**, do Google. A interface é a própria API, usada pela
 documentação **Swagger**. O enunciado está em `docs/requisitos.md`, e os requisitos e decisões
 do projeto em `docs/elicitação dos requisitos.md`. Arquivos de infraestrutura (banco local e
 acesso ao EC2) ficam em `infra/`.
@@ -20,26 +20,28 @@ endereço público:
 
 O acesso público exige HTTPS, porque o cookie de sessão só trafega por conexões seguras.
 
-## Por que Qwen 3
+## Por que Gemini 2.5 Flash
 
 | Característica | Por que importa neste projeto |
 |---|---|
-| Pesos abertos, licença Apache 2.0 | Roda na infraestrutura da equipe, sem custo por uso nem envio das conversas a terceiros. |
-| Vários tamanhos na mesma família (0.6B a 235B) | O mesmo modelo vai de um notebook sem GPU a servidores maiores, trocando só a configuração. |
-| Roda em CPU via Ollama | Compatível com as máquinas da equipe e com uma instância EC2 comum. |
+| Executado como serviço pelo Google | O servidor da aplicação não precisa de GPU nem de memória para o modelo: uma instância EC2 pequena basta. |
+| Linha "Flash": foco em baixa latência | Respostas rápidas, compatíveis com as metas de tempo até o primeiro trecho (TTFT). |
+| Escala com vários usuários | O processamento acontece na infraestrutura do Google, não numa CPU compartilhada. |
+| Qualidade superior a modelos pequenos locais | Na avaliação, o Qwen 3 local (0.6B e 1.7B) errou fatos simples; a qualidade das respostas é critério de avaliação. |
 | Multilíngue, incluindo português | Idioma das perguntas e respostas. |
-| Modo de raciocínio desligável | Reduz a latência: primeiro trecho em ~0,1 s em vez de ~2 s (medido com `qwen3:0.6b`). |
+| Raciocínio ajustável (*thinking budget*) | Desligado por padrão, para o primeiro trecho chegar mais cedo. |
+| SDK oficial em Python (`google-genai`) | Streaming assíncrono, integrado ao FastAPI. |
+| Citado no enunciado | O enunciado lista o Google Gemini como opção de modelo. |
 
-O acesso usa a **API compatível com a da OpenAI** (SDK `openai`), formato adotado pelo Ollama e
-pelos principais serviços que executam o Qwen 3. Assim, trocar de provedor não exige mudar código.
-Medições e justificativas completas: `docs/elicitação dos requisitos.md`, seção 9, decisão 8.
+Justificativas completas e histórico da escolha: `docs/elicitação dos requisitos.md`, seção 9,
+decisão 8.
 
 ## Sumário
 
 1. [Pré-requisitos](#1-pré-requisitos)
 2. [Rodando localmente](#2-rodando-localmente)
 3. [Usando a API pelo Swagger](#3-usando-a-api-pelo-swagger)
-4. [Trocando de modelo](#4-trocando-de-modelo)
+4. [Configurando o modelo](#4-configurando-o-modelo)
 5. [Rodando os testes](#5-rodando-os-testes)
 6. [Configurações](#6-configurações)
 7. [Referência da API](#7-referência-da-api)
@@ -52,7 +54,7 @@ Medições e justificativas completas: `docs/elicitação dos requisitos.md`, se
 | Python 3.12 ou superior | Rodar a aplicação | Sim |
 | Docker Desktop (ou Docker no Linux) | Rodar o PostgreSQL | Sim |
 | Git | Baixar o projeto | Sim |
-| [Ollama](https://ollama.com) | Rodar modelos Qwen 3 localmente | Não; sem ele, a aplicação usa um modelo simulado |
+| Chave de API do Gemini | Acessar o modelo | Sim, para usar a aplicação; os testes automatizados não precisam |
 
 ## 2. Rodando localmente
 
@@ -97,10 +99,11 @@ Isso só precisa ser feito uma vez. Nas próximas vezes, basta ativar o ambiente
 cp .env.example .env        # PowerShell: Copy-Item .env.example .env
 ```
 
-Sem nenhuma alteração, a aplicação usa o **modelo simulado**, que apenas repete a pergunta. Isso
-basta para testar a API. Para usar um Qwen 3 de verdade, veja a [seção 4](#4-trocando-de-modelo).
+Depois, abra o `.env` e preencha `GEMINI_API_KEY` com a sua chave (veja a
+[seção 4](#4-configurando-o-modelo)). Sem a chave, a aplicação não inicia e mostra uma mensagem
+explicando o que falta.
 
-O `.env` não é versionado: nunca coloque chaves de API em outro arquivo.
+O `.env` não é versionado: nunca coloque a chave em outro arquivo, nem a compartilhe no GitHub.
 
 ### 2.4 Iniciar a aplicação
 
@@ -131,78 +134,54 @@ Como funciona a sessão:
 
 A resposta da pergunta chega em partes (SSE), mas o Swagger só a exibe completa, ao final.
 
-## 4. Trocando de modelo
+## 4. Configurando o modelo
 
-A aplicação fala com qualquer serviço que use o **formato da API da OpenAI**. Esse formato é
-apenas um padrão de requisição: o modelo continua sendo o Qwen 3, e nada passa pela OpenAI. Para
-trocar de modelo ou de provedor, **edite o `.env` e reinicie a aplicação**. Não é preciso mudar
-código.
+A aplicação usa o **Gemini 2.5 Flash** pelo SDK oficial do Google (`google-genai`).
 
-### 4.1 Modelo simulado (padrão)
+### 4.1 Gerar a chave
+
+1. Acesse o **Google AI Studio** (https://aistudio.google.com/apikey) com uma conta Google.
+2. Crie uma chave de API.
+3. Cole-a no `.env`:
+
+```ini
+LLM_PROVEDOR=gemini
+GEMINI_API_KEY=<sua chave, sem aspas>
+LLM_MODELO=gemini-2.5-flash
+```
+
+4. Reinicie a aplicação.
+
+A chave dá acesso à sua cota no Google: não a coloque em nenhum arquivo versionado, nem a envie
+por mensagens.
+
+### 4.2 Limites de uso
+
+O plano gratuito da API do Gemini tem limites de requisições por minuto e por dia. Em 14/11/2026,
+o limite verificado para o `gemini-2.5-flash` foi de **5 requisições por minuto**. Cada pergunta
+usa uma requisição, e a atualização periódica do resumo da conversa, outra. Ao ultrapassar o
+limite, a API recusa novas chamadas por alguns segundos (erro 429), e a aplicação responde com o
+evento `erro`. Consulte os limites atuais da sua conta no Google AI Studio, principalmente antes
+de demonstrações ou testes com vários usuários.
+
+No projeto da equipe, o faturamento **pré-pago** está ativado (créditos de R$ 30, sem recarga
+automática), o que remove o limite de 5 por minuto. Quando o crédito acabar, a API para de
+responder e a aplicação passa a devolver o evento `erro`, sem cobrança adicional.
+
+### 4.3 Raciocínio do modelo
+
+O Gemini 2.5 Flash pode "pensar" antes de responder, o que atrasa o primeiro trecho da resposta.
+Por padrão a aplicação desliga esse modo (`LLM_ORCAMENTO_RACIOCINIO=0`). Para deixar o modelo
+decidir quanto pensar, use `-1`.
+
+### 4.4 Modelo simulado (testes)
 
 ```ini
 LLM_PROVEDOR=falso
 ```
 
-Não usa nenhum serviço. Útil para desenvolver e testar sem internet nem créditos.
-
-### 4.2 Qwen 3 local com Ollama
-
-O Ollama roda modelos pequenos usando só a CPU. Depois de instalá-lo, baixe um modelo, por
-exemplo:
-
-```bash
-ollama pull qwen3:0.6b        # o mais leve
-ollama pull qwen3:1.7b        # um pouco maior e melhor
-```
-
-No `.env`:
-
-```ini
-LLM_PROVEDOR=openai
-LLM_BASE_URL=http://127.0.0.1:11434/v1
-LLM_API_KEY=
-LLM_MODELO=qwen3:0.6b
-LLM_EXTRA_BODY={"reasoning_effort": "none"}
-```
-
-Use `127.0.0.1` em vez de `localhost`: no Windows, `localhost` pode tentar o IPv6 primeiro e
-atrasar cada conexão em cerca de 2 s. A linha `LLM_EXTRA_BODY` desliga o modo de raciocínio
-(seção 4.4).
-
-Para alternar entre modelos, troque só `LLM_MODELO` (por exemplo, para `qwen3:1.7b`) e reinicie
-a aplicação. O comando `ollama list` mostra os modelos baixados.
-
-Modelos pequenos em CPU servem para **validar o funcionamento**. Com muitos usuários
-simultâneos, as respostas ficam lentas, porque a CPU processa as gerações praticamente em fila.
-
-### 4.3 Qwen 3 por um serviço de API
-
-Qualquer serviço compatível com o formato da OpenAI que ofereça Qwen 3 (por exemplo,
-DashScope/Alibaba, OpenRouter ou Groq):
-
-```ini
-LLM_PROVEDOR=openai
-LLM_BASE_URL=<endereço da API do serviço, terminando em /v1>
-LLM_API_KEY=<sua chave>
-LLM_MODELO=<nome exato do modelo Qwen 3 nesse serviço>
-```
-
-### 4.4 Modo de raciocínio do Qwen 3
-
-Alguns modelos Qwen 3 "pensam em voz alta" antes de responder, o que deixa a resposta mais lenta.
-O texto desse raciocínio não aparece para o usuário, mas nenhum trecho da resposta chega enquanto
-o modelo pensa. Se o provedor permitir desligar esse modo, configure `LLM_EXTRA_BODY` com o
-parâmetro dele, em JSON. Por exemplo:
-
-```ini
-# Ollama (testado: primeiro trecho em ~0,1 s em vez de ~2 s)
-LLM_EXTRA_BODY={"reasoning_effort": "none"}
-# DashScope
-LLM_EXTRA_BODY={"enable_thinking": false}
-# vLLM
-LLM_EXTRA_BODY={"chat_template_kwargs": {"enable_thinking": false}}
-```
+Não chama nenhum serviço: apenas repete a pergunta. É o que os testes automatizados usam, para
+rodar sem chave nem internet.
 
 ## 5. Rodando os testes
 
@@ -223,11 +202,10 @@ Todas são lidas do `.env` (ou de variáveis de ambiente).
 |---|---|---|
 | `DATABASE_URL` | `postgresql+asyncpg://chatbot:chatbot@localhost:5434/chatbot` | Conexão com o PostgreSQL |
 | `COOKIE_SECURE` | `true` | Envia o cookie só por HTTPS. Deixe `true` em produção |
-| `LLM_PROVEDOR` | `falso` | `falso` (simulado) ou `openai` (formato compatível) |
-| `LLM_BASE_URL` | vazio | Endereço do serviço do modelo |
-| `LLM_API_KEY` | vazio | Chave de acesso do serviço (o Ollama não precisa) |
-| `LLM_MODELO` | `qwen3` | Nome do modelo no serviço |
-| `LLM_EXTRA_BODY` | `{}` | Parâmetros extras do provedor, em JSON |
+| `LLM_PROVEDOR` | `gemini` | `gemini` ou `falso` (simulado, usado nos testes) |
+| `GEMINI_API_KEY` | vazio | Chave da API do Gemini (obrigatória com `gemini`) |
+| `LLM_MODELO` | `gemini-2.5-flash` | Nome do modelo |
+| `LLM_ORCAMENTO_RACIOCINIO` | `0` | Tokens de raciocínio: `0` desliga, `-1` automático |
 | `LLM_TIMEOUT_SEGUNDOS` | `90` | Tempo máximo de espera pelo modelo |
 | `PROMPT_SISTEMA` | assistente em português | Instrução de sistema enviada ao modelo |
 
@@ -274,4 +252,5 @@ curl -c cookies.txt -b cookies.txt https://SEU-HOST/conversa
 | `address already in use` ao iniciar a aplicação | Outro programa usa a porta 8001. Use outra: `uvicorn app.main:app --port 8002`. |
 | PowerShell não deixa ativar o `.venv` | Rode uma vez: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. |
 | Com `curl` local, cada chamada cria uma conversa nova | O `curl` não guarda cookie `Secure` vindo de `http://`. Para testes locais com `curl`, use `COOKIE_SECURE=false` no `.env`. O navegador e o Swagger não têm esse problema. |
-| Respostas lentas com o Ollama | É esperado com modelos em CPU. Use um modelo menor (`qwen3:0.6b`) ou um serviço de API. |
+| A aplicação não inicia: `GEMINI_API_KEY não configurada` | Preencha a chave no `.env` (seção 4.1). |
+| Toda pergunta recebe o evento `erro` | Chave inválida, sem internet ou limite de uso atingido (seção 4.2). O terminal da aplicação mostra o erro detalhado. |
