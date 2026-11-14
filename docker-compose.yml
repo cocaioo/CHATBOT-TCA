@@ -1,0 +1,21 @@
+# PostgreSQL para desenvolvimento local (porta 5434, acessível só por esta máquina).
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: chatbot
+      POSTGRES_PASSWORD: chatbot
+      POSTGRES_DB: chatbot
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - dados_pg:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatbot"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  dados_pg:
