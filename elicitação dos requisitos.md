@@ -165,7 +165,7 @@ O histórico integral deve ser armazenado e ficar disponível para consulta. Já
 
 **Decisão:** a conversa continua de forma coerente combinando **mensagens recentes** com um **resumo das mensagens antigas**, preservando o histórico integral no banco. Motivo: o histórico completo pode exceder a janela de contexto do modelo ou elevar custo e latência; o resumo mantém o assunto da conversa sem reenviar tudo. Contrapartida: o resumo pode omitir detalhes das mensagens antigas no contexto do modelo (o histórico completo continua guardado). O bloqueio de perguntas simultâneas (seção 9) evita que dois processamentos atualizem o resumo ao mesmo tempo.
 
-Em aberto dentro desta decisão (a definir no projeto): quantas mensagens recentes são mantidas, quando o resumo é gerado ou atualizado, qual modelo o gera e onde ele é guardado.
+Os detalhes (10 mensagens recentes, atualização em lotes, mesmo modelo, resumo guardado na conversa) estão na seção 9, decisão 9.
 
 ```mermaid
 flowchart LR
@@ -179,14 +179,14 @@ flowchart LR
 ## 8. Qualidade, monitoramento e infraestrutura
 
 - **Concorrência:** projetar e avaliar para algumas dezenas de usuários simultâneos (meta: 30, com teste de estresse até 50; ver metas abaixo).
-- **Tempo até o primeiro token (TTFT):** medir o intervalo entre o envio da pergunta e o recebimento do primeiro token. Para que o usuário observe a resposta progressivamente, será necessário um mecanismo de streaming.
+- **Tempo até o primeiro token (TTFT):** medir o intervalo entre o envio da pergunta e o recebimento do primeiro token. A resposta é entregue progressivamente por SSE (seção 9, decisão 7).
 - **Tempo total de resposta:** medir o intervalo entre o envio da pergunta e o recebimento do último token.
 - **Recursos:** acompanhar CPU e RAM da máquina, inclusive em tempo real; acompanhar GPU e sua memória se utilizadas. Medir o consumo do próprio modelo quando ele executar na infraestrutura sob controle da equipe.
 - **Erros e carga:** acompanhar falhas e requisições em andamento para relacionar desempenho à concorrência.
 - **Modelo externo:** se uma API de terceiros executar o modelo, o consumo de recursos dessa execução pode não estar disponível; ainda assim, é possível medir recursos locais e latências percebidas.
 - **Segurança e privacidade:** proteger o tráfego com HTTPS, guardar credenciais no servidor e considerar a exposição de conteúdo enviado ao provedor. O ID não comprova a identidade do usuário. O cookie de sessão segue os atributos da decisão 4 da seção 2.
 - **Hospedagem:** AWS EC2 (decidido). Conforme o enunciado, sua utilização é opcional e concede pontuação extra; o endpoint público e as instruções de uso são exigidos.
-- **Tecnologia:** Python com FastAPI e banco PostgreSQL (decididos; justificativas na seção 9). A escolha do provedor e do modelo LLM continua em aberto.
+- **Tecnologia:** Python com FastAPI e banco PostgreSQL (decididos; justificativas na seção 9). Modelo da família Qwen 3, acessado por API compatível com a da OpenAI; o provedor que o executa e o tamanho do modelo continuam em aberto.
 
 As metas abaixo foram **aprovadas** como critérios de aceitação do protótipo. Dependem do provedor e do modelo LLM escolhidos, e o TTFT só tem sentido se houver streaming (em aberto); sem streaming, TTFT e tempo total coincidem.
 
@@ -235,6 +235,16 @@ sequenceDiagram
    - *Motivo (FastAPI):* gera a documentação OpenAPI/Swagger automaticamente, que é a interface escolhida (seção 2, decisão 1) e atende o RF08; suporta código assíncrono, adequado a muitas requisições que aguardam resposta do LLM, e streaming.
    - *Motivo (PostgreSQL):* banco relacional durável, que suporta várias conexões concorrentes e dá suporte a bloqueios no banco, necessários para a decisão 1.
    - *Motivo (EC2):* dá endpoint público e controle da máquina, permite acompanhar CPU e RAM (RF09) e vale ponto extra no enunciado.
+7. **Streaming por SSE (Server-Sent Events).**
+   - *Decisão:* o endpoint de pergunta responde com `text/event-stream`, enviando a resposta em partes à medida que o modelo a gera, seguida de um evento de fim (ou de erro). A recusa por bloqueio (HTTP 409) acontece antes de o stream começar.
+   - *Motivo:* a meta de TTFT (p95 ≤ 5 s) só é atingível se o primeiro trecho chegar antes do fim da resposta, que pode levar até 30 s. O SSE é HTTP comum, suportado nativamente pelo FastAPI (`StreamingResponse`) e mais simples que WebSocket, já que a comunicação é só do servidor para o cliente.
+   - *Consequência:* o Swagger não exibe a resposta chegando aos poucos; mostra o conteúdo completo ao fim. O TTFT é medido pelo cliente do teste de carga.
+8. **Modelo: família Qwen 3, por API compatível com a da OpenAI.**
+   - *Decisão:* a aplicação usa um cliente genérico configurado por endereço (`base_url`), nome do modelo e chave, via variáveis de ambiente. Enquanto o provedor não é escolhido, um modelo simulado permite desenvolver e testar.
+   - *Motivo:* escolha da equipe. Os principais serviços que executam Qwen 3 (DashScope/Alibaba, OpenRouter, Groq, Ollama, vLLM) oferecem essa API, então trocar de provedor não exige mudar código.
+9. **Detalhes do resumo (seção 7).**
+   - *Decisão:* as mensagens ainda não resumidas são enviadas inteiras ao modelo; quando houver 10 ou mais delas fora da janela das 10 mais recentes, o resumo é atualizado pelo mesmo modelo, depois que a resposta é entregue e antes da liberação do bloqueio. O resumo e a posição até onde ele cobre ficam guardados na própria conversa.
+   - *Motivo:* atualizar em lotes evita uma chamada extra ao modelo a cada pergunta; gerar depois da resposta não aumenta o TTFT; fazer isso ainda sob o bloqueio impede que duas atualizações concorram.
 
 ```mermaid
 flowchart TD
@@ -246,10 +256,8 @@ flowchart TD
 ### 9.2 Em aberto
 
 1. **Falhas:** definir mensagens e ações para entrada vazia, indisponibilidade ou demora do modelo e outros erros pertinentes, incluindo timeout, nova tentativa e liberação do bloqueio. Já decidido e fora desta questão: cookie ausente ou com ID inexistente cria nova conversa, sem erro (seção 2, decisão 7). A definição foi adiada por enquanto.
-2. **Provedor e modelo LLM:** escolher e justificar tecnicamente o provedor e o modelo. As metas de desempenho aprovadas devem ser verificadas com o modelo escolhido.
-3. **Mecanismo de streaming:** definir se a resposta será entregue progressivamente (e por qual mecanismo) ou de uma vez. Isso afeta a medição do TTFT.
-4. **Detalhes do resumo (seção 7):** quantidade de mensagens recentes, gatilho de geração do resumo, modelo que o gera e onde é guardado.
-5. **Cenário detalhado do teste de carga:** padrão de chegada das requisições, tamanho das perguntas e duração do teste.
+2. **Provedor e tamanho do Qwen 3:** escolher onde o modelo roda e qual tamanho usar. Executá-lo no próprio EC2 sem GPU dificilmente atinge as metas. As metas de desempenho devem ser verificadas com a escolha final.
+3. **Cenário detalhado do teste de carga:** padrão de chegada das requisições, tamanho das perguntas e duração do teste.
 
 ## 10. Verificação e apresentação
 
