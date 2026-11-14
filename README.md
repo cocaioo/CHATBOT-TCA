@@ -130,10 +130,15 @@ No `.env`:
 
 ```ini
 LLM_PROVEDOR=openai
-LLM_BASE_URL=http://localhost:11434/v1
+LLM_BASE_URL=http://127.0.0.1:11434/v1
 LLM_API_KEY=
 LLM_MODELO=qwen3:0.6b
+LLM_EXTRA_BODY={"reasoning_effort": "none"}
 ```
+
+Use `127.0.0.1` em vez de `localhost`: no Windows, `localhost` pode tentar o IPv6 primeiro e
+atrasar cada conexão em cerca de 2 s. A linha `LLM_EXTRA_BODY` desliga o modo de raciocínio
+(seção 4.4).
 
 Para alternar entre modelos, troque só `LLM_MODELO` (por exemplo, para `qwen3:1.7b`) e reinicie
 a aplicação. O comando `ollama list` mostra os modelos baixados.
@@ -156,10 +161,13 @@ LLM_MODELO=<nome exato do modelo Qwen 3 nesse serviço>
 ### 4.4 Modo de raciocínio do Qwen 3
 
 Alguns modelos Qwen 3 "pensam em voz alta" antes de responder, o que deixa a resposta mais lenta.
-Se o provedor permitir desligar esse modo, configure `LLM_EXTRA_BODY` com o parâmetro dele, em
-JSON. Por exemplo:
+O texto desse raciocínio não aparece para o usuário, mas nenhum trecho da resposta chega enquanto
+o modelo pensa. Se o provedor permitir desligar esse modo, configure `LLM_EXTRA_BODY` com o
+parâmetro dele, em JSON. Por exemplo:
 
 ```ini
+# Ollama (testado: primeiro trecho em ~0,1 s em vez de ~2 s)
+LLM_EXTRA_BODY={"reasoning_effort": "none"}
 # DashScope
 LLM_EXTRA_BODY={"enable_thinking": false}
 # vLLM
