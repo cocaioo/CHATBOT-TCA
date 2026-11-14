@@ -1,4 +1,10 @@
 # PostgreSQL para desenvolvimento local (porta 5434, acessível só por esta máquina).
+# Uso, a partir da raiz do projeto: docker compose -f infra/docker-compose.yml up -d --wait
+
+# Nome fixo do projeto: sem ele, o Docker usaria o nome da pasta ("infra")
+# e criaria um volume novo, sem os dados existentes.
+name: chatbot-tca
+
 services:
   db:
     image: postgres:17
