@@ -186,9 +186,9 @@ flowchart LR
 - **Modelo externo:** se uma API de terceiros executar o modelo, o consumo de recursos dessa execução pode não estar disponível; ainda assim, é possível medir recursos locais e latências percebidas.
 - **Segurança e privacidade:** proteger o tráfego com HTTPS, guardar credenciais no servidor e considerar a exposição de conteúdo enviado ao provedor. O ID não comprova a identidade do usuário. O cookie de sessão segue os atributos da decisão 4 da seção 2.
 - **Hospedagem:** AWS EC2 (decidido). Conforme o enunciado, sua utilização é opcional e concede pontuação extra; o endpoint público e as instruções de uso são exigidos.
-- **Tecnologia:** Python com FastAPI e banco PostgreSQL (decididos; justificativas na seção 9). Modelo da família Qwen 3, executado no Ollama e acessado por API compatível com a da OpenAI; o tamanho do modelo continua em aberto.
+- **Tecnologia:** Python com FastAPI e banco PostgreSQL (decididos; justificativas na seção 9). Modelo Gemini 2.5 Flash, pelo SDK oficial do Google (decisão 8).
 
-As metas abaixo foram **aprovadas** como critérios de aceitação do protótipo. Dependem do provedor e do modelo LLM escolhidos, e o TTFT só tem sentido se houver streaming (em aberto); sem streaming, TTFT e tempo total coincidem.
+As metas abaixo foram **aprovadas** como critérios de aceitação do protótipo. O TTFT é medido com a resposta entregue por streaming SSE (decisão 7). **Não haverá teste de carga** (decisão 11): as metas de TTFT e tempo total foram verificadas apenas com um usuário (decisão 8, medições), e as metas com 30 e 50 usuários simultâneos não serão medidas.
 
 | Métrica | Meta aprovada |
 |---|---|
@@ -224,6 +224,7 @@ sequenceDiagram
 3. **Concorrência e metas de desempenho aprovadas (seção 8).**
    - *Decisão:* 30 usuários simultâneos no teste de carga (estresse até 50); TTFT com mediana ≤ 2 s e p95 ≤ 5 s; tempo total (resposta de cerca de 300 tokens) com p95 ≤ 30 s; taxa de erro ≤ 2%, sem contar os 409 intencionais; CPU média ≤ 70% e RAM ≤ 80% na instância EC2.
    - *Motivo:* o enunciado pede algumas dezenas de usuários simultâneos. Os valores são conservadores e dão critério objetivo para a demonstração, sem prometer desempenho que dependa do provedor do modelo.
+   - *Situação:* o teste de carga foi cancelado (decisão 11). TTFT e tempo total foram verificados com um usuário e ficaram dentro das metas (decisão 8); a concorrência foi verificada funcionalmente (isolamento entre clientes e HTTP 409), mas não sob carga.
 4. **Sem recuperação de conversa.**
    - *Decisão:* quem apagar os cookies ou trocar de navegador ou dispositivo perde o acesso à conversa e inicia outra (seção 2, decisão 7).
    - *Motivo:* não há login nem identidade verificada no escopo, e qualquer mecanismo de recuperação (código, e-mail, conta) ampliaria o escopo e a superfície de segurança.
@@ -238,22 +239,35 @@ sequenceDiagram
 7. **Streaming por SSE (Server-Sent Events).**
    - *Decisão:* o endpoint de pergunta responde com `text/event-stream`, enviando a resposta em partes à medida que o modelo a gera, seguida de um evento de fim (ou de erro). A recusa por bloqueio (HTTP 409) acontece antes de o stream começar.
    - *Motivo:* a meta de TTFT (p95 ≤ 5 s) só é atingível se o primeiro trecho chegar antes do fim da resposta, que pode levar até 30 s. O SSE é HTTP comum, suportado nativamente pelo FastAPI (`StreamingResponse`) e mais simples que WebSocket, já que a comunicação é só do servidor para o cliente.
-   - *Consequência:* o Swagger não exibe a resposta chegando aos poucos; mostra o conteúdo completo ao fim. O TTFT é medido pelo cliente do teste de carga.
-8. **Modelo: família Qwen 3, por API compatível com a da OpenAI.**
-   - *Decisão:* a aplicação usa um cliente genérico configurado por endereço (`base_url`), nome do modelo e chave, via variáveis de ambiente. Enquanto o provedor não é escolhido, um modelo simulado permite desenvolver e testar.
-   - *Motivo (Qwen 3):*
-     - **Pesos abertos e licença Apache 2.0:** o enunciado permite modelos open weight; o modelo pode ser executado na própria infraestrutura da equipe, sem custo por uso nem envio das conversas a terceiros.
-     - **Família com vários tamanhos** (de 0.6B a 235B parâmetros): o mesmo modelo escala de um notebook sem GPU a servidores maiores, trocando só o nome na configuração.
-     - **Executa em CPU:** as versões pequenas rodam no Ollama sem GPU, compatível com as máquinas da equipe e com uma instância EC2 comum.
-     - **Multilíngue, incluindo português**, idioma das perguntas e respostas do chatbot.
-     - **Modo de raciocínio desligável:** para um chatbot de perguntas genéricas, desligá-lo reduz a latência. Medido no Ollama com o `qwen3:0.6b`: primeiro trecho em ~0,1 s sem raciocínio, contra ~2 s com ele.
-     - **Medições locais (um usuário, CPU):** `qwen3:0.6b` responde em ~0,1–0,5 s até o primeiro trecho, mas erra fatos e confunde papéis; `qwen3:1.7b` responde em ~1 s, mantém contexto e papéis corretamente e erra menos.
-   - *Motivo (API compatível com a da OpenAI e SDK `openai`):* é o formato adotado pelos principais serviços que executam o Qwen 3 (Ollama, vLLM, DashScope/Alibaba, OpenRouter, Groq). Com um único cliente, trocar de provedor não exige mudar código, e o SDK já trata streaming e timeouts.
-   - *Motivo (Ollama como provedor):* instalação simples, gerencia download e carregamento dos modelos e expõe a API compatível com a da OpenAI. Atende à necessidade de validar o uso sem máquina potente.
-   - *Alternância de modelos:* feita **por configuração** (editar o `.env` e reiniciar a aplicação), por exemplo entre modelos Qwen 3 pequenos no Ollama, para validar o uso sem máquina potente. Não haverá gateway com escolha de modelo por requisição. Motivo: atende à necessidade de validação sem código adicional, o que é importante com o prazo curto.
+   - *Consequência:* o Swagger não exibe a resposta chegando aos poucos; mostra o conteúdo completo ao fim. O TTFT é medido por um cliente que lê o stream (como os scripts de verificação usados nas medições da decisão 8).
+8. **Modelo: Gemini 2.5 Flash, pelo SDK oficial do Google (`google-genai`).**
+   - *Decisão:* a aplicação usa exclusivamente o Gemini 2.5 Flash, executado como serviço pelo Google. A chave de API fica só no `.env` (local e do servidor), nunca no repositório. Um modelo simulado é mantido apenas para os testes automatizados, que rodam sem chave nem internet.
+   - *Motivo (Gemini 2.5 Flash):*
+     - **Executado como serviço:** o servidor da aplicação não precisa de GPU nem de memória para o modelo. A instância EC2 disponível (`t3.micro`, 908 MB de RAM) comporta a aplicação e o banco, mas não um modelo local.
+     - **Linha "Flash", voltada a baixa latência:** compatível com as metas de TTFT e tempo total.
+     - **Escala com vários usuários:** o processamento ocorre na infraestrutura do Google, e não numa CPU compartilhada; as metas com 30 usuários simultâneos tornam-se realistas.
+     - **Qualidade das respostas**, critério de avaliação: superior à dos modelos pequenos avaliados localmente (ver histórico abaixo).
+     - **Multilíngue, incluindo português**, idioma das perguntas e respostas.
+     - **Raciocínio ajustável (*thinking budget*):** desligado por padrão (`LLM_ORCAMENTO_RACIOCINIO=0`), para o primeiro trecho chegar mais cedo.
+     - **Citado no enunciado** como opção de modelo.
+   - *Motivo (SDK `google-genai`):* SDK oficial, com chamadas assíncronas e streaming, integrado ao FastAPI; permite configurar a instrução de sistema e o orçamento de raciocínio de forma explícita. A conversão entre o formato de mensagens da aplicação e o do Gemini (papel `model`, instrução de sistema separada) fica isolada em `app/llm.py`.
+   - *Detalhe técnico:* o cliente usa a versão `v1beta` da API, porque a instrução de sistema é recusada na `v1` (padrão do SDK 3.3.0).
+   - *Medições (14/11/2026, um usuário, raciocínio desligado):* primeiro trecho entre **0,45 s e 0,94 s** e tempo total entre **0,6 s e 1,3 s**; zero tokens de raciocínio. Respostas corretas onde o Qwen 3 local errou (capital do Piauí: Teresina), memória de contexto e isolamento entre clientes corretos; bloqueio com HTTP 409 confirmado. Janela de entrada de 1.048.576 tokens.
+   - *Consequências:* as conversas são processadas pelo Google. O plano gratuito permite só **5 requisições por minuto** para o `gemini-2.5-flash` (verificado em 14/11/2026: a 6ª chamada no mesmo minuto foi recusada com HTTP 429), o que levou à ativação do faturamento pré-pago (decisão 10). Cada pergunta consome uma requisição, e a atualização do resumo, outra.
+   - *Histórico:* antes desta decisão, a equipe avaliou o **Qwen 3** (pesos abertos) executado localmente no **Ollama**, inclusive com o modelo rodando no notebook de quem apresentaria, ligado ao EC2 por túnel SSH reverso (prova de conceito aprovada em 14/11/2026). Foi substituído porque: os modelos que cabem em CPU (0.6B e 1.7B) erraram fatos simples (por exemplo, a capital do Piauí); a `t3.micro` não comporta o modelo; o arranjo com o notebook dependia de ele ficar ligado e conectado e não atenderia as metas com 30 usuários.
 9. **Detalhes do resumo (seção 7).**
    - *Decisão:* as mensagens ainda não resumidas são enviadas inteiras ao modelo; quando houver 10 ou mais delas fora da janela das 10 mais recentes, o resumo é atualizado pelo mesmo modelo, depois que a resposta é entregue e antes da liberação do bloqueio. O resumo e a posição até onde ele cobre ficam guardados na própria conversa.
    - *Motivo:* atualizar em lotes evita uma chamada extra ao modelo a cada pergunta; gerar depois da resposta não aumenta o TTFT; fazer isso ainda sob o bloqueio impede que duas atualizações concorram.
+10. **Faturamento da API do Gemini: crédito pré-pago de R$ 30, sem recarga automática.**
+   - *Decisão:* o projeto do Google ligado à chave saiu do plano gratuito com a compra de R$ 30 em créditos pré-pagos (14/11/2026). A recarga automática fica **desligada**. Os créditos valem só para a API do Gemini, não são reembolsáveis e expiram em um ano.
+   - *Motivo:* o limite gratuito (5 requisições por minuto) inviabilizava a demonstração com várias pessoas. No pré-pago, quando o crédito acaba a API para de responder, sem cobrança adicional: o gasto máximo é conhecido, mesmo com o endereço público aberto.
+   - *Verificação:* 7 chamadas seguidas em 4,4 s, todas aceitas (antes, a 6ª falhava).
+   - *Estimativa de custo* (preços do `gemini-2.5-flash` no nível pago: US$ 0,30 por milhão de tokens de entrada e US$ 2,50 por milhão de saída): cerca de US$ 0,001 por pergunta numa conversa curta e US$ 0,004 no pior caso (histórico cheio). O crédito comporta com folga as duas apresentações previstas.
+   - *Observação:* a assinatura de consumidor Google AI Plus não altera os limites da API, que dependem do projeto do Google Cloud.
+11. **Sem teste de carga.**
+   - *Decisão:* o teste de carga com 30 e 50 usuários simultâneos não será feito.
+   - *Motivo:* com a API paga por uso, o teste consumiria créditos sem benefício para a demonstração; a equipe prioriza reservar o crédito para as apresentações.
+   - *Consequência:* as metas com 30 e 50 usuários e a taxa de erro sob carga (seção 8) não serão medidas. Ficam como evidências as medições com um usuário (decisão 8) e os testes funcionais de concorrência (isolamento e HTTP 409).
 
 ```mermaid
 flowchart TD
@@ -265,8 +279,8 @@ flowchart TD
 ### 9.2 Em aberto
 
 1. **Falhas:** definir mensagens e ações para entrada vazia, indisponibilidade ou demora do modelo e outros erros pertinentes, incluindo timeout, nova tentativa e liberação do bloqueio. Já decidido e fora desta questão: cookie ausente ou com ID inexistente cria nova conversa, sem erro (seção 2, decisão 7). A definição foi adiada por enquanto.
-2. **Tamanho do Qwen 3:** o provedor é o Ollama (decisão 8); falta confirmar o tamanho do modelo. Recomendação: `qwen3:1.7b`, pela qualidade superior nas medições locais. Executá-lo no EC2 sem GPU pode não atingir as metas com muitos usuários; elas devem ser verificadas com a escolha final.
-3. **Cenário detalhado do teste de carga:** padrão de chegada das requisições, tamanho das perguntas e duração do teste.
+2. **Mensagem para crédito esgotado ou limite atingido (HTTP 429 do Gemini):** hoje o usuário recebe a mensagem genérica de falha. Uma mensagem específica deixaria claro, na demonstração, que o problema é cota e não defeito da aplicação.
+3. **Descontinuação do `gemini-2.5-flash`:** segundo a página de preços do Google (consultada em 14/11/2026, por resumo automático), a partir de 1º/12/2026 as chamadas a esse modelo serão redirecionadas ao Gemini 3.5 Flash-Lite. Não afeta a apresentação de 16/11; avaliar a troca de `LLM_MODELO` antes de uma segunda apresentação posterior a essa data.
 
 ## 10. Verificação e apresentação
 
