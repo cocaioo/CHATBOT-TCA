@@ -23,12 +23,12 @@ class Config(BaseSettings):
     mensagens_recentes: int = 10
     lote_resumo: int = 10
 
-    # LLM (seção 9, decisão 8): Gemini 2.5 Flash; "falso" é o modelo simulado dos testes
+    # LLM (seção 9, decisão 8): Gemini 3.1 Flash-Lite; "falso" é o modelo simulado dos testes
     llm_provedor: str = "gemini"
     gemini_api_key: str = ""
-    llm_modelo: str = "gemini-2.5-flash"
+    llm_modelo: str = "gemini-3.1-flash-lite"
     llm_timeout_segundos: float = 90
-    # Tokens de "raciocínio" do Gemini 2.5 Flash: 0 desliga (menor latência), -1 automático
+    # Tokens de "raciocínio" do Gemini: 0 desliga (menor latência), -1 automático
     llm_orcamento_raciocinio: int = 0
 
     prompt_sistema: str = (
