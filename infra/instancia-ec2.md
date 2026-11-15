@@ -1,8 +1,8 @@
 # Instância EC2: levantamento
 
 > **Documento histórico.** Descreve a instância **antes** do deploy. O estado atual (nginx,
-> PostgreSQL, serviço `chatbot` no systemd, swap, portas 80 e 443 abertas) está em
-> `infra/deploy.md`. A equipe acabou não usando Docker nem Caddy: tudo roda direto na instância,
+> PostgreSQL, serviço `chatbot` no systemd, swap, portas 80 e 443 abertas) está no
+> README, seção 9. A equipe acabou não usando Docker nem Caddy: tudo roda direto na instância,
 > com nginx.
 
 Varredura **somente leitura** feita em **14/11/2026**, antes de qualquer deploy. Nada foi

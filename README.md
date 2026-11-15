@@ -20,7 +20,7 @@ O acesso público exige HTTPS, porque o cookie de sessão só trafega por conex�
 certificado é **autoassinado**: o navegador mostra um aviso de segurança na primeira visita, e é
 preciso aceitá-lo para continuar (com `curl`, use `-k`).
 
-Arquitetura do servidor, acesso SSH, publicação de novas versões e logs: `infra/deploy.md`.
+Como o servidor está montado e como mantê-lo: [seção 9](#9-servidor-aws-ec2).
 
 ## Por que Gemini 3.1 Flash-Lite
 
@@ -49,6 +49,7 @@ decisão 8.
 6. [Configurações](#6-configurações)
 7. [Referência da API](#7-referência-da-api)
 8. [Problemas comuns](#8-problemas-comuns)
+9. [Servidor (AWS EC2)](#9-servidor-aws-ec2)
 
 ## 1. Pré-requisitos
 
@@ -237,6 +238,7 @@ Todas são lidas do `.env` (ou de variáveis de ambiente).
 |---|---|
 | `GET /conversa` | Histórico da conversa. Cria a conversa se ainda não existir. |
 | `POST /conversa/mensagens` | Envia `{"pergunta": "..."}`. A resposta chega por SSE. |
+| `POST /conversa/nova` | Começa outra conversa (troca o cookie) e interrompe a resposta em andamento. |
 | `GET /saude` | Verifica se a aplicação está no ar. |
 
 `POST /conversa/mensagens` responde com `text/event-stream`, com os eventos:
@@ -246,6 +248,7 @@ Todas são lidas do `.env` (ou de variáveis de ambiente).
 | `trecho` | `{"texto": "..."}` | A cada parte da resposta |
 | `fim` | `{"mensagem_id": 123}` | Ao concluir |
 | `erro` | `{"detail": "..."}` | Se o modelo falhar |
+| `interrompido` | `{}` | Se `POST /conversa/nova` for chamado durante a resposta |
 
 Respostas de erro:
 
@@ -259,11 +262,13 @@ Respostas de erro:
 O `curl` precisa guardar o cookie entre as chamadas:
 
 ```bash
-curl -c cookies.txt -b cookies.txt -N -X POST https://SEU-HOST/conversa/mensagens \
+curl -k -c cookies.txt -b cookies.txt -N -X POST https://13.58.162.232/conversa/mensagens \
   -H "Content-Type: application/json" -d '{"pergunta": "Olá!"}'
 
-curl -c cookies.txt -b cookies.txt https://SEU-HOST/conversa
+curl -k -c cookies.txt -b cookies.txt https://13.58.162.232/conversa
 ```
+
+O `-k` aceita o certificado autoassinado do servidor público; não é necessário em `localhost`.
 
 ## 8. Problemas comuns
 
@@ -276,3 +281,56 @@ curl -c cookies.txt -b cookies.txt https://SEU-HOST/conversa
 | Com `curl` local, cada chamada cria uma conversa nova | O `curl` não guarda cookie `Secure` vindo de `http://`. Para testes locais com `curl`, use `COOKIE_SECURE=false` no `.env`. O navegador e o Swagger não têm esse problema. |
 | A aplicação não inicia: `GEMINI_API_KEY não configurada` | Preencha a chave no `.env` (seção 4.1). |
 | Toda pergunta recebe o evento `erro` | Chave inválida, sem internet ou limite de uso atingido (seção 4.2). O terminal da aplicação mostra o erro detalhado. |
+
+## 9. Servidor (AWS EC2)
+
+A instância é uma `t3.micro` com Ubuntu 26.04 (908 MB de RAM e 1 GB de swap). Tudo roda direto
+nela, sem Docker:
+
+| Componente | Detalhes |
+|---|---|
+| nginx | Portas 80 (redireciona para HTTPS) e 443, com certificado autoassinado. Repassa as requisições para a aplicação |
+| Aplicação | `/home/ubuntu/CHATBOT-TCA`, branch `dev`, serviço `chatbot` do systemd em `127.0.0.1:8000`. Reinicia sozinha se cair e sobe junto com a instância |
+| Banco | PostgreSQL 18, acessível só de dentro da instância |
+| Configuração | `.env` na pasta da aplicação, com a senha do banco e a chave do Gemini |
+
+### Acesso SSH
+
+A porta 22 só aceita IPs liberados no *security group* da instância. Informe seu IP público
+(https://checkip.amazonaws.com) a quem administra a conta da AWS e peça uma regra de entrada
+**SSH, TCP 22, origem `<seu IP>/32`**. Se o SSH passar a expirar, confira se o seu IP mudou.
+
+A chave `chatbot-key.pem` não é versionada: peça-a à equipe e guarde-a em `infra/`.
+
+```bash
+ssh -i infra/chatbot-key.pem ubuntu@13.58.162.232
+```
+
+### Publicar uma nova versão
+
+Depois do merge na `dev`, dentro da instância:
+
+```bash
+cd ~/CHATBOT-TCA
+git pull --ff-only origin dev
+venv/bin/pip install -r requirements.txt   # só se requirements.txt mudou
+sudo systemctl restart chatbot
+```
+
+Tabelas novas são criadas na inicialização, mas colunas novas em tabelas existentes não: se a
+versão trouxer um `infra/migracao-*.sql`, rode-o antes de reiniciar, com
+`sudo -u postgres psql -d chatbot -f infra/migracao-<nome>.sql`.
+
+### Logs
+
+O erro 500 público mostra só `Internal Server Error`; a causa fica no log do serviço:
+
+```bash
+sudo journalctl -u chatbot -n 100 --no-pager   # últimas linhas
+sudo journalctl -u chatbot -f                  # em tempo real
+```
+
+Para mudar uma configuração (seção 6), edite o `.env` e rode `sudo systemctl restart chatbot`.
+
+> Use sempre o PostgreSQL. O primeiro deploy usou SQLite, e todo envio de pergunta falhava com
+> HTTP 500: no SQLite, a chave `BIGINT` da tabela `mensagens` não é gerada automaticamente.

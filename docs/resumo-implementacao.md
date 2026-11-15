@@ -41,7 +41,7 @@ flowchart LR
 | Banco | PostgreSQL (SQLAlchemy assíncrono) | Docker local: `infra/docker-compose.yml` |
 | Modelo | Gemini 3.1 Flash-Lite, pelo SDK oficial `google-genai` | Serviço do Google (crédito pré-pago) |
 | Interface | Swagger (sem front-end nesta etapa) | `http://localhost:8001/docs` |
-| Hospedagem | AWS EC2 `t3.micro`: nginx + PostgreSQL + serviço systemd | https://13.58.162.232/docs (`infra/deploy.md`) |
+| Hospedagem | AWS EC2 `t3.micro`: nginx + PostgreSQL + serviço systemd | https://13.58.162.232/docs (README, seção 9) |
 
 ## O que foi implementado
 
@@ -149,7 +149,7 @@ Todas, com os motivos, estão em [`docs/elicitação dos requisitos.md`](elicita
 | Item | Responsável | Referência |
 |---|---|---|
 | **Monitoramento (RF09)**: TTFT, tempo total, erros, CPU e RAM | Infraestrutura | Requisito RF09 em `docs/elicitação dos requisitos.md` |
-| **Certificado HTTPS confiável** (hoje autoassinado; o Let's Encrypt exige um domínio) | Infraestrutura | `infra/deploy.md`, "Pendências" |
+| **Certificado HTTPS confiável** (hoje autoassinado; o Let's Encrypt exige um domínio) | Infraestrutura | — |
 | **Levar a `dev` para a `main`** | Equipe | — |
 | Mensagem específica quando o crédito ou o limite do Gemini acabar (erro 429) | Equipe (opcional) | Questão em aberto 2 |
 
