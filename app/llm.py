@@ -1,6 +1,6 @@
 """Acesso ao modelo de linguagem (seção 9, decisão 8).
 
-O modelo é o Gemini 2.5 Flash, acessado pelo SDK oficial do Google (`google-genai`).
+O modelo é o Gemini 3.1 Flash-Lite, acessado pelo SDK oficial do Google (`google-genai`).
 O modelo simulado permite rodar os testes automatizados sem chave nem internet.
 
 O restante da aplicação trabalha com mensagens no formato
@@ -94,7 +94,7 @@ class LLMGemini:
 
         return types.GenerateContentConfig(
             system_instruction=sistema,
-            # 0 desliga o "raciocínio" do Gemini 2.5 Flash: o primeiro trecho chega mais cedo.
+            # 0 desliga o "raciocínio" do Gemini: o primeiro trecho chega mais cedo.
             thinking_config=types.ThinkingConfig(thinking_budget=config.llm_orcamento_raciocinio),
         )
 

@@ -2,7 +2,7 @@
 
 > Situação em **14/11/2026**, branch `dev`. Apresentação: **segunda-feira, 16/11**.
 >
-> **Em uma frase:** o backend está completo e testado, usando o Gemini 2.5 Flash; falta publicar
+> **Em uma frase:** o backend está completo e testado, usando o Gemini 3.1 Flash-Lite; falta publicar
 > a aplicação no AWS EC2 (com endereço público) e implementar o monitoramento (RF09), que ficaram
 > com a parte de infraestrutura.
 
@@ -30,7 +30,7 @@ Base: [`docs/requisitos.md`](requisitos.md) (22 itens).
 flowchart LR
     U[Usuário no navegador<br/>Swagger em /docs] -->|HTTPS + cookie de sessão| API[API FastAPI<br/>Python]
     API -->|histórico, sessões, bloqueio| DB[(PostgreSQL)]
-    API -->|pergunta + contexto| G[Gemini 2.5 Flash<br/>API do Google]
+    API -->|pergunta + contexto| G[Gemini 3.1 Flash-Lite<br/>API do Google]
     G -->|resposta em partes| API
     API -->|SSE: resposta em partes| U
 ```
@@ -39,7 +39,7 @@ flowchart LR
 |---|---|---|
 | API | Python + FastAPI (documentação Swagger automática) | `app/` |
 | Banco | PostgreSQL (SQLAlchemy assíncrono) | Docker local: `infra/docker-compose.yml` |
-| Modelo | Gemini 2.5 Flash, pelo SDK oficial `google-genai` | Serviço do Google (crédito pré-pago) |
+| Modelo | Gemini 3.1 Flash-Lite, pelo SDK oficial `google-genai` | Serviço do Google (crédito pré-pago) |
 | Interface | Swagger (sem front-end nesta etapa) | `http://localhost:8001/docs` |
 | Hospedagem | AWS EC2 `t3.micro` | **Ainda não implantada** (`infra/instancia-ec2.md`) |
 
@@ -87,7 +87,11 @@ sequenceDiagram
     end
 ```
 
-## Modelo: Gemini 2.5 Flash
+## Modelo: Gemini 3.1 Flash-Lite
+
+Até 15/11/2026 o modelo era o Gemini 2.5 Flash. No deploy, o Google recusou esse modelo para a
+chave do servidor ("não disponível para novos usuários"), e a equipe passou ao 3.1 Flash-Lite, o
+mais barato entre os disponíveis. O texto e as medições abaixo são da escolha original.
 
 **Por quê:** respostas de qualidade (critério de avaliação), baixa latência, roda no Google (o
 EC2 pequeno não precisa rodar o modelo) e é citado no enunciado. Antes, a equipe testou o Qwen 3
@@ -137,7 +141,7 @@ Todas, com os motivos, estão em [`docs/elicitação dos requisitos.md`](elicita
 | Contexto longo | Mensagens recentes + resumo das antigas |
 | Retenção | 1 hora sem atividade |
 | Entrega da resposta | Streaming por SSE |
-| Modelo | Gemini 2.5 Flash, crédito pré-pago |
+| Modelo | Gemini 3.1 Flash-Lite, crédito pré-pago |
 | Teste de carga | Não será feito |
 
 ## O que falta
@@ -149,7 +153,6 @@ Todas, com os motivos, estão em [`docs/elicitação dos requisitos.md`](elicita
 | **URL pública no README** | Infraestrutura | Seção "Acesso público" do README |
 | **Levar a `dev` para a `main`** | Equipe | — |
 | Mensagem específica quando o crédito ou o limite do Gemini acabar (erro 429) | Equipe (opcional) | Questão em aberto 2 |
-| Trocar o modelo se houver apresentação depois de 1º/12 (o 2.5 Flash será substituído pelo Google) | Equipe | Questão em aberto 3 |
 
 ## Como rodar
 

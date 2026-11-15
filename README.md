@@ -1,7 +1,7 @@
 # Chatbot TCA
 
 Chatbot multiusuário com histórico persistente por conversa, feito em Python (FastAPI +
-PostgreSQL) e usando o modelo **Gemini 2.5 Flash**, do Google. A interface é a própria API, usada pela
+PostgreSQL) e usando o modelo **Gemini 3.1 Flash-Lite**, do Google. A interface é a própria API, usada pela
 documentação **Swagger**. O enunciado está em `docs/requisitos.md`, e os requisitos e decisões
 do projeto em `docs/elicitação dos requisitos.md`. Arquivos de infraestrutura (banco local e
 acesso ao EC2) ficam em `infra/`.
@@ -20,11 +20,12 @@ endereço público:
 
 O acesso público exige HTTPS, porque o cookie de sessão só trafega por conexões seguras.
 
-## Por que Gemini 2.5 Flash
+## Por que Gemini 3.1 Flash-Lite
 
 | Característica | Por que importa neste projeto |
 |---|---|
 | Executado como serviço pelo Google | O servidor da aplicação não precisa de GPU nem de memória para o modelo: uma instância EC2 pequena basta. |
+| Menor custo da linha Flash | O crédito pré-pago é de só R$ 30; o 2.5 Flash, escolhido antes, foi bloqueado pelo Google para novos usuários. |
 | Linha "Flash": foco em baixa latência | Respostas rápidas, compatíveis com as metas de tempo até o primeiro trecho (TTFT). |
 | Escala com vários usuários | O processamento acontece na infraestrutura do Google, não numa CPU compartilhada. |
 | Qualidade superior a modelos pequenos locais | Na avaliação, o Qwen 3 local (0.6B e 1.7B) errou fatos simples; a qualidade das respostas é critério de avaliação. |
@@ -155,7 +156,7 @@ para o banco correspondente. Bancos novos recebem a coluna automaticamente na cr
 
 ## 4. Configurando o modelo
 
-A aplicação usa o **Gemini 2.5 Flash** pelo SDK oficial do Google (`google-genai`).
+A aplicação usa o **Gemini 3.1 Flash-Lite** pelo SDK oficial do Google (`google-genai`).
 
 ### 4.1 Gerar a chave
 
@@ -166,7 +167,7 @@ A aplicação usa o **Gemini 2.5 Flash** pelo SDK oficial do Google (`google-gen
 ```ini
 LLM_PROVEDOR=gemini
 GEMINI_API_KEY=<sua chave, sem aspas>
-LLM_MODELO=gemini-2.5-flash
+LLM_MODELO=gemini-3.1-flash-lite
 ```
 
 4. Reinicie a aplicação.
@@ -189,7 +190,7 @@ responder e a aplicação passa a devolver o evento `erro`, sem cobrança adicio
 
 ### 4.3 Raciocínio do modelo
 
-O Gemini 2.5 Flash pode "pensar" antes de responder, o que atrasa o primeiro trecho da resposta.
+O Gemini pode "pensar" antes de responder, o que atrasa o primeiro trecho da resposta.
 Por padrão a aplicação desliga esse modo (`LLM_ORCAMENTO_RACIOCINIO=0`). Para deixar o modelo
 decidir quanto pensar, use `-1`.
 
@@ -223,7 +224,7 @@ Todas são lidas do `.env` (ou de variáveis de ambiente).
 | `COOKIE_SECURE` | `true` | Envia o cookie só por HTTPS. Deixe `true` em produção |
 | `LLM_PROVEDOR` | `gemini` | `gemini` ou `falso` (simulado, usado nos testes) |
 | `GEMINI_API_KEY` | vazio | Chave da API do Gemini (obrigatória com `gemini`) |
-| `LLM_MODELO` | `gemini-2.5-flash` | Nome do modelo |
+| `LLM_MODELO` | `gemini-3.1-flash-lite` | Nome do modelo |
 | `LLM_ORCAMENTO_RACIOCINIO` | `0` | Tokens de raciocínio: `0` desliga, `-1` automático |
 | `LLM_TIMEOUT_SEGUNDOS` | `90` | Tempo máximo de espera pelo modelo |
 | `PROMPT_SISTEMA` | assistente em português | Instrução de sistema enviada ao modelo |

@@ -186,7 +186,7 @@ flowchart LR
 - **Modelo externo:** se uma API de terceiros executar o modelo, o consumo de recursos dessa execução pode não estar disponível; ainda assim, é possível medir recursos locais e latências percebidas.
 - **Segurança e privacidade:** proteger o tráfego com HTTPS, guardar credenciais no servidor e considerar a exposição de conteúdo enviado ao provedor. O ID não comprova a identidade do usuário. O cookie de sessão segue os atributos da decisão 4 da seção 2.
 - **Hospedagem:** AWS EC2 (decidido). Conforme o enunciado, sua utilização é opcional e concede pontuação extra; o endpoint público e as instruções de uso são exigidos.
-- **Tecnologia:** Python com FastAPI e banco PostgreSQL (decididos; justificativas na seção 9). Modelo Gemini 2.5 Flash, pelo SDK oficial do Google (decisão 8).
+- **Tecnologia:** Python com FastAPI e banco PostgreSQL (decididos; justificativas na seção 9). Modelo Gemini 3.1 Flash-Lite, pelo SDK oficial do Google (decisão 8; era o Gemini 2.5 Flash até 15/11/2026).
 
 As metas abaixo foram **aprovadas** como critérios de aceitação do protótipo. O TTFT é medido com a resposta entregue por streaming SSE (decisão 7). **Não haverá teste de carga** (decisão 11): as metas de TTFT e tempo total foram verificadas apenas com um usuário (decisão 8, medições), e as metas com 30 e 50 usuários simultâneos não serão medidas.
 
@@ -240,7 +240,8 @@ sequenceDiagram
    - *Decisão:* o endpoint de pergunta responde com `text/event-stream`, enviando a resposta em partes à medida que o modelo a gera, seguida de um evento de fim (ou de erro). A recusa por bloqueio (HTTP 409) acontece antes de o stream começar.
    - *Motivo:* a meta de TTFT (p95 ≤ 5 s) só é atingível se o primeiro trecho chegar antes do fim da resposta, que pode levar até 30 s. O SSE é HTTP comum, suportado nativamente pelo FastAPI (`StreamingResponse`) e mais simples que WebSocket, já que a comunicação é só do servidor para o cliente.
    - *Consequência:* o Swagger não exibe a resposta chegando aos poucos; mostra o conteúdo completo ao fim. O TTFT é medido por um cliente que lê o stream (como os scripts de verificação usados nas medições da decisão 8).
-8. **Modelo: Gemini 2.5 Flash, pelo SDK oficial do Google (`google-genai`).**
+8. **Modelo: Gemini 3.1 Flash-Lite (antes, Gemini 2.5 Flash), pelo SDK oficial do Google (`google-genai`).**
+   - *Atualização (15/11/2026):* o modelo passou a ser o `gemini-3.1-flash-lite`. No deploy do EC2, a chave do servidor recebeu HTTP 404 do Google: o `gemini-2.5-flash` "não está mais disponível para novos usuários". Entre os modelos liberados para a chave, o 3.1 Flash-Lite é o de menor custo (US$ 0,25 por milhão de tokens de entrada e US$ 1,50 de saída, contra US$ 0,75 e US$ 3,75 do 3.8 Flash, sugerido pelo Google, cujo preço dobra em 2027) e o único Flash-Lite testado que aceita o raciocínio desligado (`thinking_budget=0`) sem mudança de código; o 3.5 Flash-Lite recusou a chamada com HTTP 400. Em troca, é o modelo mais simples da família. Os motivos e medições abaixo se referem à escolha original do 2.5 Flash.
    - *Decisão:* a aplicação usa exclusivamente o Gemini 2.5 Flash, executado como serviço pelo Google. A chave de API fica só no `.env` (local e do servidor), nunca no repositório. Um modelo simulado é mantido apenas para os testes automatizados, que rodam sem chave nem internet.
    - *Motivo (Gemini 2.5 Flash):*
      - **Executado como serviço:** o servidor da aplicação não precisa de GPU nem de memória para o modelo. A instância EC2 disponível (`t3.micro`, 908 MB de RAM) comporta a aplicação e o banco, mas não um modelo local.
@@ -262,7 +263,8 @@ sequenceDiagram
    - *Decisão:* o projeto do Google ligado à chave saiu do plano gratuito com a compra de R$ 30 em créditos pré-pagos (14/11/2026). A recarga automática fica **desligada**. Os créditos valem só para a API do Gemini, não são reembolsáveis e expiram em um ano.
    - *Motivo:* o limite gratuito (5 requisições por minuto) inviabilizava a demonstração com várias pessoas. No pré-pago, quando o crédito acaba a API para de responder, sem cobrança adicional: o gasto máximo é conhecido, mesmo com o endereço público aberto.
    - *Verificação:* 7 chamadas seguidas em 4,4 s, todas aceitas (antes, a 6ª falhava).
-   - *Estimativa de custo* (preços do `gemini-2.5-flash` no nível pago: US$ 0,30 por milhão de tokens de entrada e US$ 2,50 por milhão de saída): cerca de US$ 0,001 por pergunta numa conversa curta e US$ 0,004 no pior caso (histórico cheio). O crédito comporta com folga as duas apresentações previstas.
+   - *Estimativa de custo atualizada (15/11/2026, `gemini-3.1-flash-lite`, decisão 8):* cerca de US$ 0,001 por pergunta, ou da ordem de 5 mil perguntas com o crédito, sem contar as chamadas de resumo. Estimativa grosseira, supondo 2 mil tokens de contexto e 300 de resposta por pergunta.
+   - *Estimativa de custo original* (preços do `gemini-2.5-flash` no nível pago: US$ 0,30 por milhão de tokens de entrada e US$ 2,50 por milhão de saída): cerca de US$ 0,001 por pergunta numa conversa curta e US$ 0,004 no pior caso (histórico cheio). O crédito comporta com folga as duas apresentações previstas.
    - *Observação:* a assinatura de consumidor Google AI Plus não altera os limites da API, que dependem do projeto do Google Cloud.
 11. **Sem teste de carga.**
    - *Decisão:* o teste de carga com 30 e 50 usuários simultâneos não será feito.
@@ -280,7 +282,7 @@ flowchart TD
 
 1. **Falhas:** definir mensagens e ações para entrada vazia, indisponibilidade ou demora do modelo e outros erros pertinentes, incluindo timeout, nova tentativa e liberação do bloqueio. Já decidido e fora desta questão: cookie ausente ou com ID inexistente cria nova conversa, sem erro (seção 2, decisão 7). A definição foi adiada por enquanto.
 2. **Mensagem para crédito esgotado ou limite atingido (HTTP 429 do Gemini):** hoje o usuário recebe a mensagem genérica de falha. Uma mensagem específica deixaria claro, na demonstração, que o problema é cota e não defeito da aplicação.
-3. **Descontinuação do `gemini-2.5-flash`:** segundo a página de preços do Google (consultada em 14/11/2026, por resumo automático), a partir de 1º/12/2026 as chamadas a esse modelo serão redirecionadas ao Gemini 3.5 Flash-Lite. Não afeta a apresentação de 16/11; avaliar a troca de `LLM_MODELO` antes de uma segunda apresentação posterior a essa data.
+3. **[Resolvida em 15/11/2026: troca para o `gemini-3.1-flash-lite`, decisão 8] Descontinuação do `gemini-2.5-flash`:** segundo a página de preços do Google (consultada em 14/11/2026, por resumo automático), a partir de 1º/12/2026 as chamadas a esse modelo serão redirecionadas ao Gemini 3.5 Flash-Lite. Não afeta a apresentação de 16/11; avaliar a troca de `LLM_MODELO` antes de uma segunda apresentação posterior a essa data.
 
 ## 10. Verificação e apresentação
 
