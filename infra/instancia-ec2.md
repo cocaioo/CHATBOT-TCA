@@ -1,12 +1,17 @@
 # Instância EC2: levantamento
 
+> **Documento histórico.** Descreve a instância **antes** do deploy. O estado atual (nginx,
+> PostgreSQL, serviço `chatbot` no systemd, swap, portas 80 e 443 abertas) está em
+> `infra/deploy.md`. A equipe acabou não usando Docker nem Caddy: tudo roda direto na instância,
+> com nginx.
+
 Varredura **somente leitura** feita em **14/11/2026**, antes de qualquer deploy. Nada foi
 instalado nem alterado na instância.
 
 ## Resumo
 
 > A instância está **vazia** (Ubuntu recém-criado) e é pequena (`t3.micro`, 908 MB de RAM).
-> Como o modelo é o **Gemini 2.5 Flash, executado pelo Google**, a instância só precisa rodar a
+> Como o modelo é o **Gemini (hoje 3.1 Flash-Lite), executado pelo Google**, a instância só precisa rodar a
 > aplicação e o banco, o que cabe nela. Antes do deploy é preciso **liberar as portas 80 e 443**.
 
 | | Situação |

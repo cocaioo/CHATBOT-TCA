@@ -1,10 +1,10 @@
 # Resumo da implementação — Chatbot TCA
 
-> Situação em **14/11/2026**, branch `dev`. Apresentação: **segunda-feira, 16/11**.
+> Situação em **15/11/2026**, branch `dev`. Apresentação: **segunda-feira, 16/11**.
 >
-> **Em uma frase:** o backend está completo e testado, usando o Gemini 3.1 Flash-Lite; falta publicar
-> a aplicação no AWS EC2 (com endereço público) e implementar o monitoramento (RF09), que ficaram
-> com a parte de infraestrutura.
+> **Em uma frase:** o backend está completo e testado, usando o Gemini 3.1 Flash-Lite, e está publicado
+> no AWS EC2 em https://13.58.162.232/docs; falta implementar o monitoramento (RF09), que ficou com a
+> parte de infraestrutura.
 
 ## Placar dos requisitos do professor
 
@@ -12,17 +12,17 @@ Base: [`docs/requisitos.md`](requisitos.md) (22 itens).
 
 | ✅ Atendidos | ◐ Parciais | ❌ Pendentes |
 |:---:|:---:|:---:|
-| **15** | **4** | **3** |
+| **20** | **1** | **1** |
 
 | Grupo | Situação |
 |---|---|
 | Funcionalidades principais (multiusuário, ID único, histórico isolado, LLM, resposta ao usuário certo) | ✅ 5 de 5 |
 | Implementação (modelo, framework, backend) | ✅ 3 de 3 |
-| Publicação e infraestrutura | ◐ EC2 (instância criada, sem a aplicação) · ❌ endereço público · ◐ instruções de uso (falta só a URL pública) |
-| Critérios de avaliação | ✅ multiusuário · ✅ sessões · ✅ organização do código · ✅ qualidade das respostas · ◐ EC2 · ❌ acesso público · ❌ apresentação (segunda) |
+| Publicação e infraestrutura | ✅ EC2 · ✅ endereço público (certificado autoassinado) · ✅ instruções de uso |
+| Critérios de avaliação | ✅ multiusuário · ✅ sessões · ✅ organização do código · ✅ qualidade das respostas · ✅ EC2 · ✅ acesso público · ❌ apresentação (segunda) |
 | Observações | ✅ ID único · ✅ conexões concorrentes · ✅ justificativa técnica · ◐ GitHub (`dev` publicada; `main` só tem o commit inicial) |
 
-**Tudo o que está pendente depende do deploy** (ou é a própria apresentação).
+Restam a `main` no GitHub e a própria apresentação.
 
 ## Arquitetura
 
@@ -41,7 +41,7 @@ flowchart LR
 | Banco | PostgreSQL (SQLAlchemy assíncrono) | Docker local: `infra/docker-compose.yml` |
 | Modelo | Gemini 3.1 Flash-Lite, pelo SDK oficial `google-genai` | Serviço do Google (crédito pré-pago) |
 | Interface | Swagger (sem front-end nesta etapa) | `http://localhost:8001/docs` |
-| Hospedagem | AWS EC2 `t3.micro` | **Ainda não implantada** (`infra/instancia-ec2.md`) |
+| Hospedagem | AWS EC2 `t3.micro`: nginx + PostgreSQL + serviço systemd | https://13.58.162.232/docs (`infra/deploy.md`) |
 
 ## O que foi implementado
 
@@ -148,9 +148,8 @@ Todas, com os motivos, estão em [`docs/elicitação dos requisitos.md`](elicita
 
 | Item | Responsável | Referência |
 |---|---|---|
-| **Deploy no EC2**: liberar portas 80 e 443, instalar Docker, HTTPS, `.env` do servidor com a chave | Infraestrutura | `infra/instancia-ec2.md` (checklist) |
 | **Monitoramento (RF09)**: TTFT, tempo total, erros, CPU e RAM | Infraestrutura | Requisito RF09 em `docs/elicitação dos requisitos.md` |
-| **URL pública no README** | Infraestrutura | Seção "Acesso público" do README |
+| **Certificado HTTPS confiável** (hoje autoassinado; o Let's Encrypt exige um domínio) | Infraestrutura | `infra/deploy.md`, "Pendências" |
 | **Levar a `dev` para a `main`** | Equipe | — |
 | Mensagem específica quando o crédito ou o limite do Gemini acabar (erro 429) | Equipe (opcional) | Questão em aberto 2 |
 

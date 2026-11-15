@@ -4,21 +4,23 @@ Chatbot multiusuário com histórico persistente por conversa, feito em Python (
 PostgreSQL) e usando o modelo **Gemini 3.1 Flash-Lite**, do Google. A interface é a própria API, usada pela
 documentação **Swagger**. O enunciado está em `docs/requisitos.md`, e os requisitos e decisões
 do projeto em `docs/elicitação dos requisitos.md`. Arquivos de infraestrutura (banco local e
-acesso ao EC2) ficam em `infra/`.
+implantação no EC2) ficam em `infra/`.
 
 ## Acesso público
 
-> **Endereço público: a definir após a implantação no AWS EC2.**
-
-Quando publicado, o uso será o mesmo descrito neste README, trocando `http://localhost:8001` pelo
-endereço público:
+A aplicação está publicada no AWS EC2. O uso é o mesmo descrito neste README, trocando
+`http://localhost:8001` pelo endereço público:
 
 | O quê | Endereço |
 |---|---|
-| Documentação interativa (Swagger) | `https://<endereço-público>/docs` |
-| Verificação de funcionamento | `https://<endereço-público>/saude` |
+| Documentação interativa (Swagger) | https://13.58.162.232/docs |
+| Verificação de funcionamento | https://13.58.162.232/saude |
 
-O acesso público exige HTTPS, porque o cookie de sessão só trafega por conexões seguras.
+O acesso público exige HTTPS, porque o cookie de sessão só trafega por conexões seguras. O
+certificado é **autoassinado**: o navegador mostra um aviso de segurança na primeira visita, e é
+preciso aceitá-lo para continuar (com `curl`, use `-k`).
+
+Arquitetura do servidor, acesso SSH, publicação de novas versões e logs: `infra/deploy.md`.
 
 ## Por que Gemini 3.1 Flash-Lite
 
