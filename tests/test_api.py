@@ -40,6 +40,19 @@ async def obter(conversa_id: str) -> Conversa | None:
 # --- Sessão por cookie (seção 2) ---
 
 
+async def test_frontend_e_recursos_estaticos_sao_servidos(cliente):
+    pagina = await cliente.get("/")
+    estilo = await cliente.get("/static/style.css")
+    script = await cliente.get("/static/app.js")
+    favicon = await cliente.get("/static/favicon.svg")
+
+    assert pagina.status_code == 200 and "text/html" in pagina.headers["content-type"]
+    assert 'id="composer-form"' in pagina.text
+    assert estilo.status_code == 200 and "text/css" in estilo.headers["content-type"]
+    assert script.status_code == 200 and "text/javascript" in script.headers["content-type"]
+    assert favicon.status_code == 200 and "image/svg+xml" in favicon.headers["content-type"]
+
+
 async def test_primeira_requisicao_cria_conversa_e_cookie(cliente):
     r = await cliente.get("/conversa")
     assert r.status_code == 200

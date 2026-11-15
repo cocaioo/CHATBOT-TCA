@@ -1,8 +1,11 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager, suppress
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .db import engine
 from .llm import criar_llm
@@ -49,3 +52,14 @@ app.include_router(router)
 @app.get("/saude", tags=["Infraestrutura"], summary="Verificar se a aplicação está no ar")
 async def saude():
     return {"status": "ok"}
+
+
+_STATIC_DIR = Path(__file__).parent / "static"
+
+
+@app.get("/", include_in_schema=False)
+async def frontend():
+    return FileResponse(_STATIC_DIR / "index.html", media_type="text/html")
+
+
+app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
