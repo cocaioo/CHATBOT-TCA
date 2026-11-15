@@ -103,9 +103,8 @@ Isso só precisa ser feito uma vez. Nas próximas vezes, basta ativar o ambiente
 cp .env.example .env        # PowerShell: Copy-Item .env.example .env
 ```
 
-Depois, abra o `.env` e preencha `GEMINI_API_KEY` com a sua chave (veja a
-[seção 4](#4-configurando-o-modelo)). Sem a chave, a aplicação não inicia e mostra uma mensagem
-explicando o que falta.
+Depois, abra o `.env` e preencha `GEMINI_API_KEY` com sua chave (veja a
+[seção 4](#4-configurando-o-modelo)).
 
 O `.env` não é versionado: nunca coloque a chave em outro arquivo, nem a compartilhe no GitHub.
 
@@ -115,7 +114,8 @@ O `.env` não é versionado: nunca coloque a chave em outro arquivo, nem a compa
 uvicorn app.main:app --port 8001
 ```
 
-Abra **http://localhost:8001/docs** no navegador. Para parar, use `Ctrl+C`.
+Abra **http://localhost:8001/** para conversar pela interface web ou
+**http://localhost:8001/docs** para acessar o Swagger. Para parar, use `Ctrl+C`.
 
 ## 3. Usando a API pelo Swagger
 
