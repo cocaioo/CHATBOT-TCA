@@ -21,6 +21,7 @@ class Conversa(Base):
     )
     # Preenchido enquanto uma resposta está sendo gerada (bloqueio)
     em_geracao_desde: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    geracao_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     resumo: Mapped[str | None] = mapped_column(Text)
     # ID da última mensagem coberta pelo resumo (0 = nenhuma)
     resumo_ate_id: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")

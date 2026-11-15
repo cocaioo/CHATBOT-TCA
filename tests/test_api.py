@@ -1,4 +1,6 @@
+import asyncio
 import json
+import socket
 import uuid
 from datetime import timedelta
 
@@ -96,6 +98,109 @@ async def test_conversas_isoladas(novo_cliente):
     assert a.cookies[COOKIE] != b.cookies[COOKIE]
     assert hist_a[0]["conteudo"] == "Meu nome é Ana" and len(hist_a) == 2
     assert hist_b[0]["conteudo"] == "Meu nome é Bruno" and len(hist_b) == 2
+
+
+async def test_nova_conversa_preserva_anterior(cliente):
+    await perguntar(cliente, "primeira")
+    anterior = cliente.cookies[COOKIE]
+    r = await cliente.post("/conversa/nova")
+    assert r.status_code == 200 and r.json() == {"mensagens": []}
+    assert cliente.cookies[COOKIE] != anterior
+    assert "httponly" in r.headers["set-cookie"].lower()
+    assert (await cliente.get("/conversa")).json() == {"mensagens": []}
+    async with SessionLocal() as db:
+        mensagens = (await db.execute(select(Mensagem).where(Mensagem.conversa_id == uuid.UUID(anterior)))).scalars().all()
+    assert len(mensagens) == 2
+    await definir(anterior, ultima_atividade=func.now() - timedelta(hours=2))
+    async with SessionLocal() as db:
+        assert await remover_inativas(db) == 1
+    assert await obter(anterior) is None
+
+
+async def test_nova_conversa_sem_cookie_valido(cliente):
+    cliente.cookies.set(COOKIE, "invalido", domain="teste.local")
+    assert (await cliente.post("/conversa/nova")).json() == {"mensagens": []}
+    assert uuid.UUID(cliente.cookies[COOKIE]).version == 4
+    async with SessionLocal() as db:
+        assert len((await db.execute(select(Conversa))).scalars().all()) == 1
+
+
+async def test_nova_conversa_interrompe_stream(novo_cliente, llm):
+    cliente, outro = novo_cliente(), novo_cliente()
+    await cliente.get("/conversa")
+    anterior = cliente.cookies[COOKIE]
+    iniciou = asyncio.Event()
+    encerrado = asyncio.Event()
+
+    async def lento(_mensagens):
+        try:
+            yield "trecho parcial"
+            iniciou.set()
+            await asyncio.Event().wait()
+        finally:
+            encerrado.set()
+
+    llm.gerar_stream = lento
+    tarefa = asyncio.create_task(perguntar(cliente, "pergunta antiga"))
+    await asyncio.wait_for(iniciou.wait(), timeout=5)
+    outro.cookies.set(COOKIE, anterior, domain="teste.local")
+    r = await outro.post("/conversa/nova")
+    assert r.status_code == 200 and outro.cookies[COOKIE] != anterior
+    resposta = await asyncio.wait_for(tarefa, timeout=5)
+    assert [nome for nome, _ in eventos(resposta.text)] == ["trecho", "interrompido"]
+    assert encerrado.is_set()
+    async with SessionLocal() as db:
+        msgs = (await db.execute(select(Mensagem).where(Mensagem.conversa_id == uuid.UUID(anterior)))).scalars().all()
+    assert [m.papel for m in msgs] == ["usuario"]
+    assert (await obter(anterior)).em_geracao_desde is None
+    assert (await outro.get("/conversa")).json() == {"mensagens": []}
+    from app.llm import LLMFalso
+    llm.gerar_stream = LLMFalso(atraso=0).gerar_stream
+    assert (await perguntar(outro, "nova pergunta")).status_code == 200
+    assert len((await outro.get("/conversa")).json()["mensagens"]) == 2
+
+
+async def test_interrupcao_stream_http_real(banco, llm):
+    import httpx
+    import uvicorn
+
+    from app.main import app
+
+    iniciou = asyncio.Event()
+
+    async def lento(_mensagens):
+        yield "parcial"
+        iniciou.set()
+        await asyncio.Event().wait()
+
+    llm.gerar_stream = lento
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    sock.listen(128)
+    porta = sock.getsockname()[1]
+    servidor = uvicorn.Server(uvicorn.Config(app, log_level="error", lifespan="off"))
+    tarefa = asyncio.create_task(servidor.serve(sockets=[sock]))
+    try:
+        while not servidor.started:
+            if tarefa.done():
+                await tarefa
+            await asyncio.sleep(0.01)
+        async with httpx.AsyncClient(base_url=f"http://127.0.0.1:{porta}", timeout=5) as cliente:
+            inicio = await cliente.get("/conversa")
+            cookie = inicio.cookies[COOKIE]
+            cabecalho = {"Cookie": f"{COOKIE}={cookie}"}
+            async with cliente.stream("POST", "/conversa/mensagens", headers=cabecalho, json={"pergunta": "oi"}) as stream:
+                linhas = stream.aiter_lines()
+                assert await anext(linhas) == "event: trecho"
+                await asyncio.wait_for(iniciou.wait(), timeout=5)
+                nova = await cliente.post("/conversa/nova", headers=cabecalho)
+                assert nova.status_code == 200
+                restante = [linha async for linha in linhas]
+                assert "event: interrompido" in restante
+    finally:
+        servidor.should_exit = True
+        await asyncio.wait_for(tarefa, timeout=5)
+        sock.close()
 
 
 # --- Bloqueio de perguntas simultâneas (decisão 1) ---

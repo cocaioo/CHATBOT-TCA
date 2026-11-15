@@ -134,6 +134,25 @@ Como funciona a sessão:
 
 A resposta da pergunta chega em partes (SSE), mas o Swagger só a exibe completa, ao final.
 
+Para começar outra conversa, execute **`POST /conversa/nova`** no Swagger. A resposta
+contém um histórico vazio e substitui o cookie de sessão. O histórico anterior permanece
+no banco até a limpeza após uma hora de inatividade, mas não pode mais ser consultado
+com o novo cookie. Uma resposta em andamento é interrompida: o stream anterior recebe
+o evento SSE `interrompido`, quando ainda estiver conectado; a pergunta permanece no
+histórico anterior e a resposta parcial não é salva. O provedor ainda pode contabilizar
+parte da chamada interrompida.
+
+Se o banco já existia antes desta funcionalidade, pare a aplicação e execute uma vez a
+migração abaixo em cada banco existente, inclusive o de testes se utilizado:
+
+```powershell
+Get-Content -Raw infra/migracao-geracao-id.sql | docker exec -i chatbot-tca-db-1 psql -U chatbot -d chatbot
+Get-Content -Raw infra/migracao-geracao-id.sql | docker exec -i chatbot-tca-db-1 psql -U chatbot -d chatbot_test
+```
+
+Em outro ambiente PostgreSQL, execute `infra/migracao-geracao-id.sql` com `psql` apontando
+para o banco correspondente. Bancos novos recebem a coluna automaticamente na criação.
+
 ## 4. Configurando o modelo
 
 A aplicação usa o **Gemini 2.5 Flash** pelo SDK oficial do Google (`google-genai`).

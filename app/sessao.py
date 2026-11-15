@@ -52,27 +52,48 @@ def definir_cookie(response: Response, conversa_id: uuid.UUID) -> None:
     )
 
 
-async def adquirir_bloqueio(db: AsyncSession, conversa_id: uuid.UUID) -> bool:
+async def adquirir_bloqueio(db: AsyncSession, conversa_id: uuid.UUID) -> uuid.UUID | None:
     """Marca a conversa como "em geração" de forma atômica.
     Devolve False se já houver uma resposta em geração (HTTP 409)."""
     expira = func.now() - timedelta(seconds=config.bloqueio_expira_segundos)
+    geracao_id = uuid.uuid4()
     resultado = await db.execute(
         update(Conversa)
         .where(
             Conversa.id == conversa_id,
             or_(Conversa.em_geracao_desde.is_(None), Conversa.em_geracao_desde < expira),
         )
-        .values(em_geracao_desde=func.now(), ultima_atividade=func.now())
+        .values(em_geracao_desde=func.now(), ultima_atividade=func.now(), geracao_id=geracao_id)
         .returning(Conversa.id)
     )
     adquirido = resultado.scalar_one_or_none() is not None
     await db.commit()
-    return adquirido
+    return geracao_id if adquirido else None
 
 
-async def liberar_bloqueio(conversa_id: uuid.UUID) -> None:
+async def liberar_bloqueio(conversa_id: uuid.UUID, geracao_id: uuid.UUID) -> None:
     async with SessionLocal() as db:
         await db.execute(
-            update(Conversa).where(Conversa.id == conversa_id).values(em_geracao_desde=None)
+            update(Conversa).where(Conversa.id == conversa_id, Conversa.geracao_id == geracao_id)
+            .values(em_geracao_desde=None, geracao_id=None)
         )
         await db.commit()
+
+
+async def criar_nova_conversa(request: Request, db: AsyncSession) -> uuid.UUID:
+    """Cancela a geração anterior e cria outra conversa na mesma transação."""
+    try:
+        anterior = uuid.UUID(request.cookies.get(config.cookie_nome, ""))
+    except ValueError:
+        anterior = None
+    if anterior is not None:
+        limite = func.now() - timedelta(seconds=config.retencao_segundos)
+        await db.execute(
+            update(Conversa)
+            .where(Conversa.id == anterior, Conversa.ultima_atividade >= limite)
+            .values(geracao_id=None, em_geracao_desde=None)
+        )
+    conversa = Conversa()
+    db.add(conversa)
+    await db.commit()
+    return conversa.id
