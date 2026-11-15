@@ -7,24 +7,46 @@
   <meta name="description" content="Converse com o Chatbot TCA.">
   <title>Chatbot TCA</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("theme");
+      document.documentElement.dataset.theme = savedTheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    } catch {
+      document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+  </script>
   <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/vendor/marked.js" defer></script>
+  <script src="/static/vendor/purify.min.js" defer></script>
   <script src="/static/app.js" defer></script>
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <a class="brand" href="/" aria-label="Chatbot TCA, início">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M5 18.5 3.8 21l4.3-1.2a9 9 0 1 0-3.1-1.3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M8 12h.01M12 12h.01M16 12h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-          </svg>
-        </span>
-        <span class="brand-name">Chatbot <strong>TCA</strong></span>
-      </a>
+      <div class="brand-group">
+        <a class="brand" href="/" aria-label="Chatbot TCA, início">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5 18.5 3.8 21l4.3-1.2a9 9 0 1 0-3.1-1.3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8 12h.01M12 12h.01M16 12h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="brand-name">Chatbot <strong>TCA</strong></span>
+        </a>
+        <p class="session-id" id="session-id" hidden>Sessão: <span></span></p>
+      </div>
 
       <div class="topbar-actions">
         <div class="connection-status"><span class="status-dot"></span><span>Assistente pronto</span></div>
+        <button class="theme-button" id="theme-toggle" type="button" aria-label="Alternar tema" title="Alternar tema">
+          <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+          <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42m0-14.14-1.42 1.42M6.35 17.65l-1.42 1.42" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
         <button class="new-chat-button" id="new-chat" type="button">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -45,24 +67,7 @@
           </div>
           <p class="eyebrow">SEU ASSISTENTE VIRTUAL</p>
           <h1>Olá! O que vamos<br class="mobile-break"> descobrir hoje?</h1>
-          <p class="welcome-copy">Faça uma pergunta, explore uma ideia ou peça ajuda com uma tarefa.</p>
-          <div class="suggestions" aria-label="Sugestões de perguntas">
-            <button type="button" class="suggestion" data-prompt="Explique inteligência artificial de um jeito simples">
-              <span class="suggestion-icon violet">✳</span>
-              <span>Explique algo complexo<br><small>de um jeito simples</small></span>
-              <span class="suggestion-arrow" aria-hidden="true">↗</span>
-            </button>
-            <button type="button" class="suggestion" data-prompt="Me ajude a organizar minhas tarefas de hoje">
-              <span class="suggestion-icon amber">↗</span>
-              <span>Organize minhas ideias<br><small>e tarefas do dia</small></span>
-              <span class="suggestion-arrow" aria-hidden="true">↗</span>
-            </button>
-            <button type="button" class="suggestion" data-prompt="Me dê três ideias criativas para um projeto">
-              <span class="suggestion-icon mint">✧</span>
-              <span>Crie algo comigo<br><small>vamos começar?</small></span>
-              <span class="suggestion-arrow" aria-hidden="true">↗</span>
-            </button>
-          </div>
+          <p class="welcome-copy">Digite sua pergunta no campo abaixo para começar.</p>
         </div>
 
         <div class="messages" id="messages" aria-live="polite" aria-relevant="additions text"></div>

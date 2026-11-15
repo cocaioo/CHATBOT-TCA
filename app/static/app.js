@@ -1,3 +1,17 @@
+const themeButton = document.querySelector("#theme-toggle");
+function updateThemeButton() {
+  const dark = document.documentElement.dataset.theme === "dark";
+  themeButton.setAttribute("aria-label", dark ? "Ativar tema claro" : "Ativar tema escuro");
+  themeButton.title = themeButton.getAttribute("aria-label");
+}
+themeButton.addEventListener("click", () => {
+  const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = theme;
+  try { localStorage.setItem("theme", theme); } catch { }
+  updateThemeButton();
+});
+updateThemeButton();
+
 const form = document.querySelector("#composer-form");
 const textarea = document.querySelector("#question");
 const sendButton = document.querySelector("#send-button");
@@ -5,6 +19,15 @@ const newChatButton = document.querySelector("#new-chat");
 const characterCount = document.querySelector("#character-count");
 const welcome = document.querySelector("#welcome");
 const messages = document.querySelector("#messages");
+const sessionId = document.querySelector("#session-id");
+
+function updateSessionId(response) {
+  const id = response.headers.get("X-Id-Sessao");
+  if (id) {
+    sessionId.querySelector("span").textContent = id;
+    sessionId.hidden = false;
+  }
+}
 
 let activeController = null;
 let conversationVersion = 0;
@@ -21,6 +44,10 @@ function updateComposer() {
   characterCount.textContent = `${textarea.value.length} / 4000`;
   textarea.style.height = "auto";
   textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
+}
+
+function renderAssistantText(body, text) {
+  body.innerHTML = DOMPurify.sanitize(marked.parse(text), { FORBID_TAGS: ["img"] });
 }
 
 function addMessage(role, text = "", pending = false) {
@@ -42,9 +69,10 @@ function addMessage(role, text = "", pending = false) {
   label.className = "message-role";
   label.textContent = role === "user" ? "Você" : "Assistente";
 
-  const body = document.createElement("p");
+  const body = document.createElement("div");
   body.className = "message-text";
-  body.textContent = text;
+  if (role === "assistant" && !pending) renderAssistantText(body, text);
+  else body.textContent = text;
 
   content.append(label, body);
   article.append(content);
@@ -94,13 +122,14 @@ async function readStream(response, target, requestVersion) {
   let buffer = "";
   let completed = false;
   let receivedText = false;
+  let assistantText = "";
 
   const handleEvent = (name, data) => {
     if (requestVersion !== conversationVersion) return;
     if (name === "trecho") {
       target.article.classList.remove("message-pending");
-      if (!receivedText) target.body.textContent = "";
-      target.body.textContent += data.texto;
+      assistantText += data.texto;
+      renderAssistantText(target.body, assistantText);
       receivedText = true;
       scrollToLatest();
     } else if (name === "fim") {
@@ -110,7 +139,7 @@ async function readStream(response, target, requestVersion) {
       showAssistantError(
         target,
         receivedText
-          ? `${target.body.textContent}\n\nNão foi possível concluir a resposta.`
+          ? `${assistantText}\n\nNão foi possível concluir a resposta.`
           : data.detail
       );
     }
@@ -135,7 +164,7 @@ async function readStream(response, target, requestVersion) {
   if (!completed && requestVersion === conversationVersion && !target.body.classList.contains("error-text")) {
     showAssistantError(
       target,
-      receivedText ? `${target.body.textContent}\n\nA resposta foi interrompida.` : "A resposta foi interrompida."
+      receivedText ? `${assistantText}\n\nA resposta foi interrompida.` : "A resposta foi interrompida."
     );
   }
 }
@@ -160,6 +189,8 @@ async function sendQuestion(question) {
       body: JSON.stringify({ pergunta: cleanQuestion }),
       signal: controller.signal,
     });
+
+    if (requestVersion === conversationVersion) updateSessionId(response);
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
@@ -194,19 +225,12 @@ textarea.addEventListener("keydown", (event) => {
   }
 });
 
-document.querySelectorAll("[data-prompt]").forEach((button) => {
-  button.addEventListener("click", () => {
-    textarea.value = button.dataset.prompt;
-    updateComposer();
-    form.requestSubmit();
-  });
-});
-
 newChatButton.addEventListener("click", async () => {
   newChatButton.disabled = true;
   try {
     const response = await fetch("/conversa/nova", { method: "POST" });
     if (!response.ok) throw new Error("Não foi possível iniciar uma nova conversa.");
+    updateSessionId(response);
     const history = await response.json();
 
     conversationVersion += 1;
@@ -228,6 +252,7 @@ async function loadHistory() {
   try {
     const response = await fetch("/conversa");
     if (!response.ok) throw new Error("Não foi possível carregar o histórico.");
+    updateSessionId(response);
     const history = await response.json();
     renderHistory(history.mensagens);
   } catch (error) {

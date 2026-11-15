@@ -85,6 +85,20 @@ async def test_id_nao_aparece_no_corpo_das_respostas(cliente):
     assert conversa_id not in r.text
 
 
+async def test_identificador_visivel_e_estavel_sem_expor_cookie(novo_cliente):
+    cliente, outro = novo_cliente(), novo_cliente()
+    primeira = await cliente.get("/conversa")
+    identificador = primeira.headers["x-id-sessao"]
+    assert len(identificador) == 32 and int(identificador, 16) >= 0
+    assert identificador != cliente.cookies[COOKIE].replace("-", "")
+    assert (await cliente.get("/conversa")).headers["x-id-sessao"] == identificador
+    assert (await perguntar(cliente, "oi")).headers["x-id-sessao"] == identificador
+    assert (await outro.get("/conversa")).headers["x-id-sessao"] != identificador
+    nova = await cliente.post("/conversa/nova")
+    assert nova.headers["x-id-sessao"] != identificador
+    assert (await cliente.get("/conversa")).headers["x-id-sessao"] == nova.headers["x-id-sessao"]
+
+
 async def test_cookie_invalido_cria_nova_conversa(cliente):
     cliente.cookies.set(COOKIE, "nao-e-um-uuid", domain="teste.local")
     r = await cliente.get("/conversa")
