@@ -20,6 +20,9 @@ Chatbot multiusuário com histórico persistente por conversa.
 cookie automaticamente: basta usar os endpoints abaixo. Com `curl`, mantenha os cookies entre
 chamadas (`curl -c cookies.txt -b cookies.txt ...`).
 
+**Nova conversa:** `POST /conversa/nova` troca o cookie e interrompe a geração anterior.
+O histórico anterior permanece no banco até expirar.
+
 **Perguntas:** `POST /conversa/mensagens` responde por SSE (`text/event-stream`). O Swagger mostra
 a resposta completa ao final; clientes de stream a recebem em partes. Enquanto uma resposta está
 sendo gerada, outra pergunta na mesma conversa recebe HTTP 409.
