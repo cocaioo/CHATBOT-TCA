@@ -17,8 +17,7 @@ A aplicação está publicada no AWS EC2. O uso é o mesmo descrito neste README
 | Verificação de funcionamento | https://13.58.162.232/saude |
 
 O acesso público exige HTTPS, porque o cookie de sessão só trafega por conexões seguras. O
-certificado é **autoassinado**: o navegador mostra um aviso de segurança na primeira visita, e é
-preciso aceitá-lo para continuar (com `curl`, use `-k`).
+certificado é emitido pela Let's Encrypt para o endereço IP da instância.
 
 Como o servidor está montado e como mantê-lo: [seção 9](#9-servidor-aws-ec2).
 
@@ -262,13 +261,11 @@ Respostas de erro:
 O `curl` precisa guardar o cookie entre as chamadas:
 
 ```bash
-curl -k -c cookies.txt -b cookies.txt -N -X POST https://13.58.162.232/conversa/mensagens \
+curl -c cookies.txt -b cookies.txt -N -X POST https://13.58.162.232/conversa/mensagens \
   -H "Content-Type: application/json" -d '{"pergunta": "Olá!"}'
 
-curl -k -c cookies.txt -b cookies.txt https://13.58.162.232/conversa
+curl -c cookies.txt -b cookies.txt https://13.58.162.232/conversa
 ```
-
-O `-k` aceita o certificado autoassinado do servidor público; não é necessário em `localhost`.
 
 ## 8. Problemas comuns
 
@@ -289,10 +286,16 @@ nela, sem Docker:
 
 | Componente | Detalhes |
 |---|---|
-| nginx | Portas 80 (redireciona para HTTPS) e 443, com certificado autoassinado. Repassa as requisições para a aplicação |
+| nginx | Portas 80 (redireciona para HTTPS) e 443, com certificado da Let's Encrypt. Repassa as requisições para a aplicação |
 | Aplicação | `/home/ubuntu/CHATBOT-TCA`, branch `dev`, serviço `chatbot` do systemd em `127.0.0.1:8000`. Reinicia sozinha se cair e sobe junto com a instância |
 | Banco | PostgreSQL 18, acessível só de dentro da instância |
 | Configuração | `.env` na pasta da aplicação, com a senha do banco e a chave do Gemini |
+
+O certificado do IP tem validade de seis dias. O timer `snap.certbot.renew.timer` executa a
+renovação automática e o Certbot recarrega o nginx após renová-lo. Para verificar a renovação,
+execute `sudo /snap/bin/certbot renew --dry-run --cert-name chatbot-ip --run-deploy-hooks --no-random-sleep-on-renew`.
+A conta do Certbot foi criada sem e-mail; não há avisos por e-mail
+se a renovação falhar. Se o IP público mudar, será necessário emitir outro certificado para ele.
 
 ### Acesso SSH
 
