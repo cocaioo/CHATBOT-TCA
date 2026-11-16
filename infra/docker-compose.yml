@@ -1,0 +1,27 @@
+# PostgreSQL para desenvolvimento local (porta 5434, acessível só por esta máquina).
+# Uso, a partir da raiz do projeto: docker compose -f infra/docker-compose.yml up -d --wait
+
+# Nome fixo do projeto: sem ele, o Docker usaria o nome da pasta ("infra")
+# e criaria um volume novo, sem os dados existentes.
+name: chatbot-tca
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: chatbot
+      POSTGRES_PASSWORD: chatbot
+      POSTGRES_DB: chatbot
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - dados_pg:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatbot"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  dados_pg:
