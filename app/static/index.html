@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f6fa">
+  <meta name="description" content="Converse com o Chatbot TCA.">
+  <title>Chatbot TCA</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("theme");
+      document.documentElement.dataset.theme = savedTheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    } catch {
+      document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+  </script>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/vendor/marked.js" defer></script>
+  <script src="/static/vendor/purify.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-group">
+        <a class="brand" href="/" aria-label="Chatbot TCA, início">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5 18.5 3.8 21l4.3-1.2a9 9 0 1 0-3.1-1.3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8 12h.01M12 12h.01M16 12h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="brand-name">Chatbot <strong>TCA</strong></span>
+        </a>
+        <p class="session-id" id="session-id" hidden>Sessão: <span></span></p>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="connection-status"><span class="status-dot"></span><span>Assistente pronto</span></div>
+        <button class="theme-button" id="theme-toggle" type="button" aria-label="Alternar tema" title="Alternar tema">
+          <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+          <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42m0-14.14-1.42 1.42M6.35 17.65l-1.42 1.42" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="new-chat-button" id="new-chat" type="button">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <span>Nova conversa</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="chat-main">
+      <section class="conversation" aria-label="Conversa com o assistente">
+        <div class="welcome" id="welcome">
+          <div class="welcome-orb" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none">
+              <path d="M24 5.5 27.8 19l13.7 5-13.7 4L24 42.5 20.2 28l-13.7-4 13.7-5L24 5.5Z" fill="currentColor"/>
+              <path d="m38 5 1.6 5.4L45 12l-5.4 1.6L38 19l-1.6-5.4L31 12l5.4-1.6L38 5Z" fill="currentColor" opacity=".58"/>
+            </svg>
+          </div>
+          <p class="eyebrow">SEU ASSISTENTE VIRTUAL</p>
+          <h1>Olá! O que vamos<br class="mobile-break"> descobrir hoje?</h1>
+          <p class="welcome-copy">Digite sua pergunta no campo abaixo para começar.</p>
+        </div>
+
+        <div class="messages" id="messages" aria-live="polite" aria-relevant="additions text"></div>
+      </section>
+    </main>
+
+    <footer class="composer-area">
+      <form class="composer" id="composer-form">
+        <label class="sr-only" for="question">Sua mensagem</label>
+        <textarea id="question" name="question" rows="1" maxlength="4000"
+          placeholder="Escreva sua mensagem..." autocomplete="off"></textarea>
+        <div class="composer-bottom">
+          <span class="composer-hint">Enter para enviar <span class="hint-divider">·</span> Shift + Enter para pular linha</span>
+          <div class="composer-controls">
+            <span class="character-count" id="character-count">0 / 4000</span>
+            <button class="send-button" id="send-button" type="submit" aria-label="Enviar mensagem" disabled>
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 12h14M13 5l7 7-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </form>
+      <p class="disclaimer">O assistente pode cometer erros. Confira informações importantes.</p>
+    </footer>
+  </div>
+</body>
+</html>
