@@ -38,6 +38,7 @@ class MensagemSaida(BaseModel):
 
 
 class HistoricoSaida(BaseModel):
+    id_sessao: uuid.UUID
     mensagens: list[MensagemSaida]
 
 
@@ -58,7 +59,7 @@ async def historico(request: Request, response: Response, db: AsyncSession = Dep
     resultado = await db.execute(
         select(Mensagem).where(Mensagem.conversa_id == conversa_id).order_by(Mensagem.id)
     )
-    return {"mensagens": list(resultado.scalars())}
+    return {"id_sessao": conversa_id, "mensagens": list(resultado.scalars())}
 
 
 @router.post("/nova", response_model=HistoricoSaida, summary="Iniciar uma nova conversa")
@@ -66,7 +67,7 @@ async def nova_conversa(request: Request, response: Response, db: AsyncSession =
     """Preserva a conversa anterior e interrompe qualquer resposta em geração."""
     conversa_id = await criar_nova_conversa(request, db)
     definir_cookie(response, conversa_id)
-    return {"mensagens": []}
+    return {"id_sessao": conversa_id, "mensagens": []}
 
 
 @router.post(

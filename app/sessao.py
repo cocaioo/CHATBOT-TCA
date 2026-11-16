@@ -1,6 +1,5 @@
 """Identificação do cliente por cookie de sessão (seção 2 dos requisitos)."""
 
-import hashlib
 import uuid
 from datetime import timedelta
 
@@ -43,7 +42,7 @@ async def obter_conversa(request: Request, db: AsyncSession) -> uuid.UUID:
 
 def definir_cookie(response: Response, conversa_id: uuid.UUID) -> None:
     """Emite ou renova o cookie (decisão 4): validade de 1 hora a cada requisição."""
-    response.headers["X-Id-Sessao"] = hashlib.sha256(conversa_id.bytes).hexdigest()[:32]
+    response.headers["X-Id-Sessao"] = str(conversa_id)
     response.set_cookie(
         key=config.cookie_nome,
         value=str(conversa_id),

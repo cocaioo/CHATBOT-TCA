@@ -151,6 +151,10 @@ o evento SSE `interrompido`, quando ainda estiver conectado; a pergunta permanec
 histórico anterior e a resposta parcial não é salva. O provedor ainda pode contabilizar
 parte da chamada interrompida.
 
+As respostas JSON de `GET /conversa` e `POST /conversa/nova` incluem `id_sessao` e
+`mensagens`. O mesmo UUID aparece no cabeçalho `X-Id-Sessao` e no cookie de sessão;
+quem possuir esse UUID pode acessar a conversa enquanto ela estiver ativa.
+
 Se o banco já existia antes desta funcionalidade, pare a aplicação e execute uma vez a
 migração abaixo em cada banco existente, inclusive o de testes se utilizado:
 

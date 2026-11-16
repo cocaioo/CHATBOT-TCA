@@ -56,7 +56,7 @@ async def test_frontend_e_recursos_estaticos_sao_servidos(cliente):
 async def test_primeira_requisicao_cria_conversa_e_cookie(cliente):
     r = await cliente.get("/conversa")
     assert r.status_code == 200
-    assert r.json() == {"mensagens": []}
+    assert r.json() == {"id_sessao": cliente.cookies[COOKIE], "mensagens": []}
     set_cookie = r.headers["set-cookie"].lower()
     for atributo in ("httponly", "secure", "samesite=lax", "max-age=3600"):
         assert atributo in set_cookie
@@ -78,23 +78,23 @@ async def test_cookie_mantem_a_mesma_conversa(cliente):
     assert cliente.cookies[COOKIE] == original
 
 
-async def test_id_nao_aparece_no_corpo_das_respostas(cliente):
+async def test_id_aparece_no_corpo_das_respostas(cliente):
     await perguntar(cliente, "oi")
     conversa_id = cliente.cookies[COOKIE]
     r = await cliente.get("/conversa")
-    assert conversa_id not in r.text
+    assert r.json()["id_sessao"] == conversa_id
 
 
-async def test_identificador_visivel_e_estavel_sem_expor_cookie(novo_cliente):
+async def test_identificador_visivel_e_estavel(novo_cliente):
     cliente, outro = novo_cliente(), novo_cliente()
     primeira = await cliente.get("/conversa")
     identificador = primeira.headers["x-id-sessao"]
-    assert len(identificador) == 32 and int(identificador, 16) >= 0
-    assert identificador != cliente.cookies[COOKIE].replace("-", "")
+    assert identificador == cliente.cookies[COOKIE] == primeira.json()["id_sessao"]
     assert (await cliente.get("/conversa")).headers["x-id-sessao"] == identificador
     assert (await perguntar(cliente, "oi")).headers["x-id-sessao"] == identificador
     assert (await outro.get("/conversa")).headers["x-id-sessao"] != identificador
     nova = await cliente.post("/conversa/nova")
+    assert nova.json()["id_sessao"] == cliente.cookies[COOKIE] == nova.headers["x-id-sessao"]
     assert nova.headers["x-id-sessao"] != identificador
     assert (await cliente.get("/conversa")).headers["x-id-sessao"] == nova.headers["x-id-sessao"]
 
@@ -131,10 +131,10 @@ async def test_nova_conversa_preserva_anterior(cliente):
     await perguntar(cliente, "primeira")
     anterior = cliente.cookies[COOKIE]
     r = await cliente.post("/conversa/nova")
-    assert r.status_code == 200 and r.json() == {"mensagens": []}
+    assert r.status_code == 200 and r.json() == {"id_sessao": cliente.cookies[COOKIE], "mensagens": []}
     assert cliente.cookies[COOKIE] != anterior
     assert "httponly" in r.headers["set-cookie"].lower()
-    assert (await cliente.get("/conversa")).json() == {"mensagens": []}
+    assert (await cliente.get("/conversa")).json() == {"id_sessao": cliente.cookies[COOKIE], "mensagens": []}
     async with SessionLocal() as db:
         mensagens = (await db.execute(select(Mensagem).where(Mensagem.conversa_id == uuid.UUID(anterior)))).scalars().all()
     assert len(mensagens) == 2
@@ -146,7 +146,8 @@ async def test_nova_conversa_preserva_anterior(cliente):
 
 async def test_nova_conversa_sem_cookie_valido(cliente):
     cliente.cookies.set(COOKIE, "invalido", domain="teste.local")
-    assert (await cliente.post("/conversa/nova")).json() == {"mensagens": []}
+    resposta = await cliente.post("/conversa/nova")
+    assert resposta.json() == {"id_sessao": cliente.cookies[COOKIE], "mensagens": []}
     assert uuid.UUID(cliente.cookies[COOKIE]).version == 4
     async with SessionLocal() as db:
         assert len((await db.execute(select(Conversa))).scalars().all()) == 1
@@ -180,7 +181,7 @@ async def test_nova_conversa_interrompe_stream(novo_cliente, llm):
         msgs = (await db.execute(select(Mensagem).where(Mensagem.conversa_id == uuid.UUID(anterior)))).scalars().all()
     assert [m.papel for m in msgs] == ["usuario"]
     assert (await obter(anterior)).em_geracao_desde is None
-    assert (await outro.get("/conversa")).json() == {"mensagens": []}
+    assert (await outro.get("/conversa")).json() == {"id_sessao": outro.cookies[COOKIE], "mensagens": []}
     from app.llm import LLMFalso
     llm.gerar_stream = LLMFalso(atraso=0).gerar_stream
     assert (await perguntar(outro, "nova pergunta")).status_code == 200
@@ -287,7 +288,7 @@ async def test_conversa_expirada_vira_nova(cliente):
     await definir(antigo, ultima_atividade=func.now() - timedelta(hours=2))
 
     r = await cliente.get("/conversa")
-    assert r.json() == {"mensagens": []}
+    assert r.json() == {"id_sessao": cliente.cookies[COOKIE], "mensagens": []}
     assert cliente.cookies[COOKIE] != antigo
 
 
