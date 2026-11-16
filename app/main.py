@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .db import engine
 from .llm import criar_llm
+from .monitoramento import coletar_metricas, laco_instancia, laco_metricas
 from .models import Base
 from .retencao import laco_limpeza
 from .rotas import router
@@ -38,10 +39,16 @@ async def lifespan(app: FastAPI):
         await conexao.run_sync(Base.metadata.create_all)
     app.state.llm = criar_llm()
     limpeza = asyncio.create_task(laco_limpeza())
+    app.state.metricas = coletar_metricas(cpu_inicial=True)
+    metricas = asyncio.create_task(laco_metricas(app))
+    instancia = asyncio.create_task(laco_instancia(app))
     yield
     limpeza.cancel()
-    with suppress(asyncio.CancelledError):
-        await limpeza
+    metricas.cancel()
+    instancia.cancel()
+    for tarefa in (limpeza, metricas, instancia):
+        with suppress(asyncio.CancelledError):
+            await tarefa
     await engine.dispose()
 
 
@@ -54,12 +61,31 @@ async def saude():
     return {"status": "ok"}
 
 
+@app.get("/api/metricas", tags=["Infraestrutura"], summary="Consultar métricas da instância")
+async def metricas():
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(getattr(app.state, "metricas", {}), headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/instancia", tags=["Infraestrutura"], summary="Consultar informações públicas da instância")
+async def informacoes_instancia():
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(getattr(app.state, "instancia", {}), headers={"Cache-Control": "no-store"})
+
+
 _STATIC_DIR = Path(__file__).parent / "static"
 
 
 @app.get("/", include_in_schema=False)
 async def frontend():
     return FileResponse(_STATIC_DIR / "index.html", media_type="text/html")
+
+
+@app.get("/monitoramento", include_in_schema=False)
+async def monitoramento():
+    return FileResponse(_STATIC_DIR / "monitoramento.html", media_type="text/html")
 
 
 app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")

@@ -1,0 +1,60 @@
+.monitor-main { width: min(100% - 40px, 1040px); margin: 0 auto; padding: 62px 0 48px; }
+.monitor-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 32px; }
+.monitor-heading h1 { font-size: clamp(30px, 4vw, 39px); }
+.monitor-description { margin: 12px 0 0; color: #74788e; font-size: 14px; line-height: 1.6; }
+.monitor-status { display: flex; align-items: center; flex-shrink: 0; gap: 9px; margin: 0 0 4px; color: #4c7468; font-size: 12px; }
+.monitor-status.status-error { color: #a74b55; }
+.monitor-status.status-error .status-dot { background: #cf6670; box-shadow: 0 0 0 3px rgba(207, 102, 112, .12); }
+.back-link { color: #5554c5; font-size: 12px; font-weight: 650; text-decoration: none; white-space: nowrap; }
+.back-link:hover { text-decoration: underline; }
+.back-link span { margin-left: 4px; }
+.instance-section { padding: 24px 25px; margin-bottom: 34px; border: 1px solid #e4e5ed; border-radius: 16px; background: rgba(255, 255, 255, .83); }
+.instance-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.instance-heading .eyebrow { margin-bottom: 7px; }
+.instance-heading h2, .metrics-heading h2 { margin: 0; color: #292b40; font-size: 18px; font-weight: 680; }
+.instance-provider { color: #7774c9; font-size: 10px; font-weight: 750; letter-spacing: 1px; }
+.instance-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px 20px; margin: 24px 0 0; }
+.instance-grid dt { color: #777b8f; font-size: 11px; }
+.instance-grid dd { margin: 6px 0 0; color: #35374a; font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+.metrics-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+.metrics-heading p { margin: 0; color: #777b8f; font-size: 11px; }
+.metrics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.metric-card { min-width: 0; padding: 24px 25px 19px; border: 1px solid #e4e5ed; border-radius: 16px; background: rgba(255, 255, 255, .83); box-shadow: 0 8px 30px rgba(36, 39, 68, .04); }
+.metric-top { display: flex; align-items: center; justify-content: space-between; }
+.metric-top h2 { margin: 0; color: #53566b; font-size: 13px; font-weight: 650; }
+.metric-icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; color: #6968d5; background: #efefff; font-size: 18px; }
+.metric-value { margin: 13px 0 2px; color: #292b40; font-size: 30px; font-weight: 680; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+.metric-detail { min-height: 20px; margin: 0; color: #777b8f; font-size: 12px; }
+.metric-chart { height: 70px; margin-top: 23px; }
+.metric-chart svg { width: 100%; height: 100%; overflow: visible; }
+.metric-chart .chart-grid { fill: none; stroke: #ececf3; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.metric-chart polyline { fill: none; stroke: #7775dc; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.chart-caption { display: flex; justify-content: space-between; margin: 8px 0 0; color: #85899d; font-size: 10px; }
+.monitor-footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 24px; color: #777b8f; font-size: 12px; }
+.monitor-footer p, .monitor-note { margin: 0; }
+.monitor-footer strong { color: #55576b; margin-right: 6px; }
+.monitor-note { margin-top: 12px; color: #85899d; font-size: 11px; line-height: 1.6; }
+[data-theme="dark"] .monitor-description, [data-theme="dark"] .metric-detail, [data-theme="dark"] .monitor-footer, [data-theme="dark"] .monitor-note, [data-theme="dark"] .chart-caption { color: #b1b4c7; }
+[data-theme="dark"] .monitor-status { color: #8ed6b9; }
+[data-theme="dark"] .monitor-status.status-error { color: #ff9ca6; }
+[data-theme="dark"] .back-link { color: #c2c0ff; }
+[data-theme="dark"] .instance-section { border-color: #414255; background: #252634; }
+[data-theme="dark"] .instance-heading h2, [data-theme="dark"] .metrics-heading h2, [data-theme="dark"] .instance-grid dd { color: #e1e2ef; }
+[data-theme="dark"] .instance-grid dt, [data-theme="dark"] .metrics-heading p { color: #b1b4c7; }
+[data-theme="dark"] .instance-provider { color: #c2c0ff; }
+[data-theme="dark"] .metric-card { border-color: #414255; background: #252634; box-shadow: none; }
+[data-theme="dark"] .metric-top h2, [data-theme="dark"] .monitor-footer strong { color: #d4d5e5; }
+[data-theme="dark"] .metric-value { color: #f1f1fa; }
+[data-theme="dark"] .metric-icon { color: #c2c0ff; background: #393955; }
+[data-theme="dark"] .metric-chart .chart-grid { stroke: #414255; }
+[data-theme="dark"] .metric-chart polyline { stroke: #b2b0ff; }
+@media (max-width: 640px) {
+  .monitor-main { width: calc(100% - 32px); padding: 36px 0; }
+  .monitor-heading { align-items: flex-start; flex-direction: column; gap: 18px; margin-bottom: 24px; }
+  .metrics-grid { grid-template-columns: 1fr; gap: 12px; }
+  .instance-section { padding: 20px; margin-bottom: 28px; }
+  .instance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 14px; }
+  .metric-card { padding: 20px; }
+  .monitor-footer { flex-direction: column; gap: 8px; }
+  .topbar-actions { gap: 12px; }
+}

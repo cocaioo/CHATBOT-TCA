@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f6fa">
+  <title>Monitoramento | Chatbot TCA</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script>
+    try {
+      document.documentElement.dataset.theme = localStorage.getItem("theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    } catch {
+      document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+  </script>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/monitoramento.css">
+  <script src="/static/monitoramento.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Voltar ao Chatbot TCA">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 18.5 3.8 21l4.3-1.2a9 9 0 1 0-3.1-1.3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 12h.01M12 12h.01M16 12h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+        <span class="brand-name">Chatbot <strong>TCA</strong></span>
+      </a>
+      <div class="topbar-actions">
+        <button class="theme-button" id="theme-toggle" type="button" aria-label="Alternar tema">
+          <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42m0-14.14-1.42 1.42M6.35 17.65l-1.42 1.42" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+        <a class="back-link" href="/">Voltar ao chat <span aria-hidden="true">↗</span></a>
+      </div>
+    </header>
+    <main class="monitor-main">
+      <div class="monitor-heading">
+        <div>
+          <p class="eyebrow">INFRAESTRUTURA</p>
+          <h1>Monitoramento</h1>
+          <p class="monitor-description">Acompanhe os recursos do servidor em tempo real.</p>
+        </div>
+        <p class="monitor-status" id="status" role="status"><span class="status-dot"></span><span>Conectando...</span></p>
+      </div>
+      <section class="instance-section" aria-labelledby="instance-heading">
+        <div class="instance-heading"><div><p class="eyebrow">AMBIENTE</p><h2 id="instance-heading">Sobre a instância</h2></div><span class="instance-provider">SERVIDOR</span></div>
+        <dl class="instance-grid">
+          <div><dt>Nome na AWS</dt><dd id="instance-name">Carregando...</dd></div>
+          <div><dt>Tipo de instância</dt><dd id="instance-type">Carregando...</dd></div>
+          <div><dt>Sistema operacional</dt><dd id="instance-os">Carregando...</dd></div>
+          <div><dt>Arquitetura</dt><dd id="instance-arch">Carregando...</dd></div>
+          <div><dt>CPUs virtuais</dt><dd id="instance-cpu">Carregando...</dd></div>
+          <div><dt>Memória RAM</dt><dd id="instance-memory">Carregando...</dd></div>
+          <div><dt>Capacidade do disco</dt><dd id="instance-disk">Carregando...</dd></div>
+          <div><dt>Tempo ligado</dt><dd id="instance-uptime">Carregando...</dd></div>
+        </dl>
+      </section>
+      <div class="metrics-heading"><h2>Uso dos recursos</h2><p>Leituras a cada 5 segundos</p></div>
+      <div class="metrics-grid">
+        <section class="metric-card" data-metric="cpu">
+          <div class="metric-top"><h2>CPU</h2><span class="metric-icon" aria-hidden="true">◫</span></div>
+          <p class="metric-value">—</p><p class="metric-detail">Aguardando dados</p>
+          <div class="metric-chart" aria-label="Histórico de uso da CPU"><svg viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true"><path class="chart-grid" d="M0 1H300 M0 35H300 M0 69H300"/><polyline points=""/></svg></div>
+          <p class="chart-caption"><span>Últimas leituras · escala de 0 a 100%</span><span>0%</span></p>
+        </section>
+        <section class="metric-card" data-metric="memoria">
+          <div class="metric-top"><h2>Memória RAM</h2><span class="metric-icon" aria-hidden="true">▤</span></div>
+          <p class="metric-value">—</p><p class="metric-detail">Aguardando dados</p>
+          <div class="metric-chart" aria-label="Histórico de uso da memória RAM"><svg viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true"><path class="chart-grid" d="M0 1H300 M0 35H300 M0 69H300"/><polyline points=""/></svg></div>
+          <p class="chart-caption"><span>Últimas leituras · escala de 0 a 100%</span><span>0%</span></p>
+        </section>
+        <section class="metric-card" data-metric="swap">
+          <div class="metric-top"><h2>Swap</h2><span class="metric-icon" aria-hidden="true">⇄</span></div>
+          <p class="metric-value">—</p><p class="metric-detail">Aguardando dados</p>
+          <div class="metric-chart" aria-label="Histórico de uso da swap"><svg viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true"><path class="chart-grid" d="M0 1H300 M0 35H300 M0 69H300"/><polyline points=""/></svg></div>
+          <p class="chart-caption"><span>Últimas leituras · escala de 0 a 100%</span><span>0%</span></p>
+        </section>
+        <section class="metric-card" data-metric="disco">
+          <div class="metric-top"><h2>Disco</h2><span class="metric-icon" aria-hidden="true">▣</span></div>
+          <p class="metric-value">—</p><p class="metric-detail">Aguardando dados</p>
+          <div class="metric-chart" aria-label="Histórico de uso do disco"><svg viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true"><path class="chart-grid" d="M0 1H300 M0 35H300 M0 69H300"/><polyline points=""/></svg></div>
+          <p class="chart-caption"><span>Últimas leituras · escala de 0 a 100%</span><span>0%</span></p>
+        </section>
+      </div>
+      <div class="monitor-footer"><p><strong>GPU</strong> <span>Métricas indisponíveis.</span></p><p id="updated">Atualização a cada 5 segundos</p></div>
+      <p class="monitor-note">Histórico disponível enquanto esta página estiver aberta. A infraestrutura do Gemini não está incluída.</p>
+    </main>
+  </div>
+</body>
+</html>

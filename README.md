@@ -116,6 +116,12 @@ uvicorn app.main:app --port 8001
 Abra **http://localhost:8001/** para conversar pela interface web ou
 **http://localhost:8001/docs** para acessar o Swagger. Para parar, use `Ctrl+C`.
 
+O painel público em **http://localhost:8001/monitoramento** mostra CPU, memória, swap e disco,
+com atualização a cada cinco segundos. Os gráficos mantêm apenas as leituras desta página;
+as métricas de GPU e da infraestrutura do Gemini não estão disponíveis. O painel também
+mostra informações da máquina; na EC2, o nome vem da tag `Name` quando o acesso a tags no
+IMDS estiver habilitado. Habilitar essa opção permite que processos locais leiam as tags.
+
 ## 3. Usando a API pelo Swagger
 
 1. Abra http://localhost:8001/docs.
@@ -239,6 +245,8 @@ Todas são lidas do `.env` (ou de variáveis de ambiente).
 | `POST /conversa/mensagens` | Envia `{"pergunta": "..."}`. A resposta chega por SSE. |
 | `POST /conversa/nova` | Começa outra conversa (troca o cookie) e interrompe a resposta em andamento. |
 | `GET /saude` | Verifica se a aplicação está no ar. |
+| `GET /api/metricas` | Última amostra pública de CPU, memória, swap e disco da máquina. |
+| `GET /api/instancia` | Nome e tipo da EC2, sistema operacional, arquitetura e início da máquina. |
 
 `POST /conversa/mensagens` responde com `text/event-stream`, com os eventos:
 
